@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Vercel serverless function shim & vercel.json
 type: infra
 complexity: medium
@@ -33,10 +33,10 @@ the `/core/v5/...` routes — including the dynamic `charge_id` — resolve unch
 </requirements>
 
 ## Subtasks
-- [ ] 8.1 Create `api/index.ts` exporting the Express app as the Vercel handler with KV backend selected.
-- [ ] 8.2 Create `vercel.json` with the catch-all rewrite to `/api`.
-- [ ] 8.3 Wire the store factory so Vercel uses `STORE_BACKEND=kv`.
-- [ ] 8.4 Verify the `/core/v5/...` and dynamic `charge_id` paths resolve through the rewrite.
+- [x] 8.1 Create `api/index.ts` exporting the Express app as the Vercel handler with KV backend selected.
+- [x] 8.2 Create `vercel.json` with the catch-all rewrite to `/api`.
+- [x] 8.3 Wire the store factory so Vercel uses `STORE_BACKEND=kv`.
+- [x] 8.4 Verify the `/core/v5/...` and dynamic `charge_id` paths resolve through the rewrite.
 
 ## Implementation Details
 Create `api/index.ts` and `vercel.json`. The shim imports the app from `src/server.ts` (Task 01/06) and
@@ -64,11 +64,11 @@ Express handler export as appropriate for the Vercel Node runtime.
 
 ## Tests
 - Unit tests:
-  - [ ] `api/index.ts` imports and exports the Express app without throwing.
-  - [ ] With `STORE_BACKEND=kv`, the factory yields `KvOrderStore` in the function entrypoint.
+  - [x] `api/index.ts` imports and exports the Express app without throwing.
+  - [x] With `STORE_BACKEND=kv`, the factory yields `KvOrderStore` in the function entrypoint.
 - Integration tests:
-  - [ ] Driving the exported handler (supertest), `POST /core/v5/orders` resolves and returns a contract body (rewrite path equivalence).
-  - [ ] A `DELETE /core/v5/charges/:id` request reaches the cancel handler through the catch-all rewrite (dynamic param preserved).
+  - [x] Driving the exported handler (supertest), `POST /core/v5/orders` resolves and returns a contract body (rewrite path equivalence).
+  - [x] A `DELETE /core/v5/charges/:id` request reaches the cancel handler through the catch-all rewrite (dynamic param preserved).
 - Test coverage target: >=80%
 - All tests must pass
 

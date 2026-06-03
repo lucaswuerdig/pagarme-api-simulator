@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: GitHub Actions CI/CD pipeline
 type: infra
 complexity: medium
@@ -32,10 +32,10 @@ only ships passing builds (TechSpec "Development Sequencing"; ADR-007).
 </requirements>
 
 ## Subtasks
-- [ ] 9.1 Create the `test` job: checkout, setup-node, `npm ci`, lint, `vitest`.
-- [ ] 9.2 Create the `deploy` job gated by `needs: test` and `if` push-to-`main`.
-- [ ] 9.3 Wire the Vercel CLI deploy steps using the `VERCEL_*` secrets.
-- [ ] 9.4 Document the required GitHub secrets in the workflow and for Task 11.
+- [x] 9.1 Create the `test` job: checkout, setup-node, `npm ci`, lint, `vitest`.
+- [x] 9.2 Create the `deploy` job gated by `needs: test` and `if` push-to-`main`.
+- [x] 9.3 Wire the Vercel CLI deploy steps using the `VERCEL_*` secrets.
+- [x] 9.4 Document the required GitHub secrets in the workflow and for Task 11.
 
 ## Implementation Details
 Create `.github/workflows/ci.yml`. The two-job structure, CLI commands, and secret names are specified in
@@ -62,11 +62,11 @@ job runs the scripts defined in Task 01; the `deploy` job uploads the prebuilt V
 
 ## Tests
 - Unit tests:
-  - [ ] The workflow YAML parses and the `deploy` job declares `needs: test` (asserted via a YAML-lint/parse test or `act --dryrun`/`actionlint` in CI).
-  - [ ] The `deploy` job is guarded by an `if` condition restricting it to push events on `main`.
+  - [x] The workflow YAML parses and the `deploy` job declares `needs: test` (`tests/unit/ciWorkflow.test.ts` parses `ci.yml` with `js-yaml` and asserts `needs: test`).
+  - [x] The `deploy` job is guarded by an `if` condition restricting it to push events on `main` (asserted in `tests/unit/ciWorkflow.test.ts`).
 - Integration tests:
-  - [ ] The `test` job command sequence (`npm ci`, lint, `vitest`) runs green locally against the in-memory store (proxy for the CI test job).
-  - [ ] `vercel build` produces a prebuilt output directory locally using the Task 08 config (deploy artifact smoke check; no live deploy).
+  - [x] The `test` job command sequence (`npm ci`, lint, `vitest`) runs green locally against the in-memory store (ran `npm ci`→lint→typecheck→build→`npm test`, all exit 0; 163 tests pass, in-memory store).
+  - [ ] `vercel build` produces a prebuilt output directory locally using the Task 08 config (deploy artifact smoke check; no live deploy). **CI-only:** the Vercel CLI is not installable in this hermetic env (needs `vercel@54.9.0` download + a linked project + `VERCEL_TOKEN`); it runs in the `deploy` job. Local proxy validated: `npm run build` populates `dist/`; `api/index.ts` + `vercel.json` present and exercised end-to-end by `tests/integration/vercelHandler.test.ts`.
 - Test coverage target: >=80%
 - All tests must pass
 

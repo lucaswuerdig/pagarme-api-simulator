@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Connection guide, README & magic-card docs
 type: docs
 complexity: low
@@ -35,10 +35,10 @@ boundary for app-side integration (PRD "Connection guide"; ADR-002).
 </requirements>
 
 ## Subtasks
-- [ ] 11.1 Write `docs/connection-guide.md` reproducing `_idea.md` §7 with production-safety warnings.
-- [ ] 11.2 Write `README.md` covering local dev (Docker + memory), env vars, deploy pipeline, and secrets.
-- [ ] 11.3 Document the magic-card scenario table and the `/__reset` helper.
-- [ ] 11.4 Add the over-trust / contract-drift caveats from the PRD risks.
+- [x] 11.1 Write `docs/connection-guide.md` reproducing `_idea.md` §7 with production-safety warnings.
+- [x] 11.2 Write `README.md` covering local dev (Docker + memory), env vars, deploy pipeline, and secrets.
+- [x] 11.3 Document the magic-card scenario table and the `/__reset` helper.
+- [x] 11.4 Add the over-trust / contract-drift caveats from the PRD risks.
 
 ## Implementation Details
 Create `README.md` and `docs/connection-guide.md`. Content is sourced from `_idea.md` §5/§7, the PRD
@@ -68,12 +68,12 @@ be self-contained for adopters.
 
 ## Tests
 - Unit tests:
-  - [ ] A docs-lint/link-check test confirms the magic-card table lists all six scenarios from `_idea.md` §5.
-  - [ ] The connection guide explicitly states `PAGARME_API_URL` must be UNSET in production (asserted by a content/grep test).
-  - [ ] The README lists the required env vars and `VERCEL_*` secrets (content assertion).
+  - [x] A docs-lint/link-check test confirms the magic-card table lists all six scenarios from `_idea.md` §5. (`tests/unit/docs.test.ts`)
+  - [x] The connection guide explicitly states `PAGARME_API_URL` must be UNSET in production (asserted by a content/grep test). (`tests/unit/docs.test.ts`)
+  - [x] The README lists the required env vars and `VERCEL_*` secrets (content assertion). (`tests/unit/docs.test.ts`)
 - Integration tests:
-  - [ ] Following the README local-run steps boots the service and `GET /health` returns 200 (doc-accuracy smoke test).
-  - [ ] The documented sample `POST /core/v5/orders` request with a magic card returns the documented outcome (doc ↔ behavior parity).
+  - [x] Following the README local-run steps boots the service and `GET /health` returns 200 (doc-accuracy smoke test). (`tests/integration/docsAccuracy.test.ts`)
+  - [x] The documented sample `POST /core/v5/orders` request with a magic card returns the documented outcome (doc ↔ behavior parity). (`tests/integration/docsAccuracy.test.ts`)
 - Test coverage target: >=80%
 - All tests must pass
 

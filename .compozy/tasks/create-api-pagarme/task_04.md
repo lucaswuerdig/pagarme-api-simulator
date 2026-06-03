@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Magic-card outcome resolver
 type: backend
 complexity: low
@@ -32,10 +32,10 @@ ADR-003).
 </requirements>
 
 ## Subtasks
-- [ ] 4.1 Define the `Outcome` union type and the magic-card → outcome lookup table.
-- [ ] 4.2 Implement `resolveOutcome(input)` reading number, `card_id`, or `card_token`.
-- [ ] 4.3 Map tokenized magic ids (e.g., `card_approved`, `card_refused`) to the same outcomes.
-- [ ] 4.4 Default unknown cards to `approved_captured`.
+- [x] 4.1 Define the `Outcome` union type and the magic-card → outcome lookup table.
+- [x] 4.2 Implement `resolveOutcome(input)` reading number, `card_id`, or `card_token`.
+- [x] 4.3 Map tokenized magic ids (e.g., `card_approved`, `card_refused`) to the same outcomes.
+- [x] 4.4 Default unknown cards to `approved_captured`.
 
 ## Implementation Details
 Create `src/magic/cards.ts` exporting `Outcome` and `resolveOutcome`. The signature is in TechSpec
@@ -60,16 +60,16 @@ The resolver is consumed by the response builders (Task 05) and routes (Task 06)
 
 ## Tests
 - Unit tests:
-  - [ ] `4000000000000010` resolves to `approved_captured`.
-  - [ ] `4000000000000028` resolves to `approved_no_capture`.
-  - [ ] `4000000000000002` resolves to `declined`.
-  - [ ] `4000000000000036` resolves to `transaction_error`.
-  - [ ] `4000000000000044` resolves to `order_failed`.
-  - [ ] `4000000000009999` resolves to `gateway_unavailable`.
-  - [ ] An unrecognized number (e.g., `5555444433332222`) defaults to `approved_captured`.
-  - [ ] A tokenized magic `card_id` (e.g., `card_refused`) resolves to `declined`.
+  - [x] `4000000000000010` resolves to `approved_captured`.
+  - [x] `4000000000000028` resolves to `approved_no_capture`.
+  - [x] `4000000000000002` resolves to `declined`.
+  - [x] `4000000000000036` resolves to `transaction_error`.
+  - [x] `4000000000000044` resolves to `order_failed`.
+  - [x] `4000000000009999` resolves to `gateway_unavailable`.
+  - [x] An unrecognized number (e.g., `5555444433332222`) defaults to `approved_captured`.
+  - [x] A tokenized magic `card_id` (e.g., `card_refused`) resolves to `declined`.
 - Integration tests:
-  - [ ] Resolver output drives a builder (Task 05) so `declined` produces a body with `success: false` (verified once builders exist).
+  - [x] Resolver output drives a builder (Task 05) so `declined` produces a body with `success: false` (via a builder stand-in fixture in `tests/integration/magicCardOutcome.test.ts`; to be re-pointed at the real builder when Task 05 lands).
 - Test coverage target: >=80%
 - All tests must pass
 

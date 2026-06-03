@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Pagar.me v5 contract types
 type: backend
 complexity: low
@@ -32,10 +32,10 @@ and routes (TechSpec "Data Models").
 </requirements>
 
 ## Subtasks
-- [ ] 2.1 Define the Order, Charge, Transaction, Card, and Token response interfaces in snake_case.
-- [ ] 2.2 Define the internal `OrderRecord` interface and the `ChargeStatus` union used by the store.
-- [ ] 2.3 Define a loose request type capturing only the fields the service reads (`amount`, card number/`card_id`/`card_token`, `operation_type`, `installments`, `code`, `metadata`).
-- [ ] 2.4 Export all types from a single module for reuse across store, resolver, builders, and routes.
+- [x] 2.1 Define the Order, Charge, Transaction, Card, and Token response interfaces in snake_case.
+- [x] 2.2 Define the internal `OrderRecord` interface and the `ChargeStatus` union used by the store.
+- [x] 2.3 Define a loose request type capturing only the fields the service reads (`amount`, card number/`card_id`/`card_token`, `operation_type`, `installments`, `code`, `metadata`).
+- [x] 2.4 Export all types from a single module for reuse across store, resolver, builders, and routes.
 
 ## Implementation Details
 Create `src/types/pagarme.ts` mirroring TechSpec "Data Models" precisely; do not invent fields beyond
@@ -62,11 +62,11 @@ and §8 for the authoritative field list and the per-response required-field che
 
 ## Tests
 - Unit tests:
-  - [ ] A hand-written success-order fixture from `_idea.md` §4.1 type-checks against the `Order` interface (compile-time assertion test).
-  - [ ] A `ChargeStatus` value outside the union (e.g., `"bogus"`) fails to assign in a `// @ts-expect-error` test.
-  - [ ] `OrderRecord` requires `orderId`, `chargeId`, `cardId`, `code`, `amount`, `status`, `outcome` (missing field is a type error).
+  - [x] A hand-written success-order fixture from `_idea.md` §4.1 type-checks against the `Order` interface (compile-time assertion test).
+  - [x] A `ChargeStatus` value outside the union (e.g., `"bogus"`) fails to assign in a `// @ts-expect-error` test.
+  - [x] `OrderRecord` requires `orderId`, `chargeId`, `cardId`, `code`, `amount`, `status`, `outcome` (missing field is a type error).
 - Integration tests:
-  - [ ] A representative capture-response and cancel-response fixture from `_idea.md` §4.2–4.3 satisfies the `Charge` interface (used by Task 05 builders).
+  - [x] A representative capture-response and cancel-response fixture from `_idea.md` §4.2–4.3 satisfies the `Charge` interface (used by Task 05 builders).
 - Test coverage target: >=80%
 - All tests must pass
 

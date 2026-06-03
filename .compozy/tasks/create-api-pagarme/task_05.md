@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Response builders (order / charge / token)
 type: backend
 complexity: medium
@@ -35,11 +35,11 @@ heart of contract fidelity (TechSpec "Implementation Design"; `_idea.md` §4, §
 </requirements>
 
 ## Subtasks
-- [ ] 5.1 Build the order response for each success and failure `Outcome` (with `charges[0].last_transaction`).
-- [ ] 5.2 Build the capture charge response (root-level `last_transaction`, `status: captured`).
-- [ ] 5.3 Build the cancel/refund charge response (`voided`/`refunded`, `canceled_amount`/`refunded_amount`).
-- [ ] 5.4 Build the token response with card metadata and timestamps.
-- [ ] 5.5 Populate `acquirer_*` fields and derive card display fields from the number.
+- [x] 5.1 Build the order response for each success and failure `Outcome` (with `charges[0].last_transaction`).
+- [x] 5.2 Build the capture charge response (root-level `last_transaction`, `status: captured`).
+- [x] 5.3 Build the cancel/refund charge response (`voided`/`refunded`, `canceled_amount`/`refunded_amount`).
+- [x] 5.4 Build the token response with card metadata and timestamps.
+- [x] 5.5 Populate `acquirer_*` fields and derive card display fields from the number.
 
 ## Implementation Details
 Create builders under `src/responses/` (e.g., `orderResponse.ts`, `chargeResponse.ts`,
@@ -68,17 +68,17 @@ Create builders under `src/responses/` (e.g., `orderResponse.ts`, `chargeRespons
 
 ## Tests
 - Unit tests:
-  - [ ] `approved_captured` order body: root `status` ≠ `failed`, `charges[0].last_transaction.status = "captured"`, `success: true`, and `charges[0].last_transaction.card.id` present.
-  - [ ] `approved_no_capture` order body: `last_transaction.status = "authorized_pending_capture"`, `operation_type = "auth_only"`, `success: true`.
-  - [ ] `declined` order body: `last_transaction.status = "not_authorized"`, `success: false`, `acquirer_return_code = "57"`.
-  - [ ] `transaction_error` order body: `last_transaction.status = "with_error"`, `success: false`.
-  - [ ] `order_failed` order body: root `status = "failed"`.
-  - [ ] Order body echoes the request `code` and keeps `metadata.site`.
-  - [ ] Capture charge body: root-level `last_transaction.status = "captured"`, `success: true`.
-  - [ ] Cancel charge body: `last_transaction.status = "voided"`, `success: true`, and `canceled_amount` set.
-  - [ ] Token body: `id`, `card.id`, `card.first_six_digits`, `card.last_four_digits`, `card.brand` all present.
+  - [x] `approved_captured` order body: root `status` ≠ `failed`, `charges[0].last_transaction.status = "captured"`, `success: true`, and `charges[0].last_transaction.card.id` present.
+  - [x] `approved_no_capture` order body: `last_transaction.status = "authorized_pending_capture"`, `operation_type = "auth_only"`, `success: true`.
+  - [x] `declined` order body: `last_transaction.status = "not_authorized"`, `success: false`, `acquirer_return_code = "57"`.
+  - [x] `transaction_error` order body: `last_transaction.status = "with_error"`, `success: false`.
+  - [x] `order_failed` order body: root `status = "failed"`.
+  - [x] Order body echoes the request `code` and keeps `metadata.site`.
+  - [x] Capture charge body: root-level `last_transaction.status = "captured"`, `success: true`.
+  - [x] Cancel charge body: `last_transaction.status = "voided"`, `success: true`, and `canceled_amount` set.
+  - [x] Token body: `id`, `card.id`, `card.first_six_digits`, `card.last_four_digits`, `card.brand` all present.
 - Integration tests:
-  - [ ] For each outcome, the assembled order body contains the full ⭐ field set from `_idea.md` §8 (checklist assertion).
+  - [x] For each outcome, the assembled order body contains the full ⭐ field set from `_idea.md` §8 (checklist assertion).
 - Test coverage target: >=80%
 - All tests must pass
 

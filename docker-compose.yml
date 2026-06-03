@@ -1,0 +1,64 @@
+# Local development stack for the fake Pagar.me API — LOCAL DEV ONLY.
+#
+# This compose file exists so developers can run the fake with local parity to
+# the deployed runtime, including a local Redis for the KV-backed lifecycle. It
+# is NOT the deployment path: production ships to Vercel serverless functions
+# (ADR-006) via the GitHub Actions pipeline (ADR-007). `vercel.json` and
+# `.github/workflows/ci.yml` do not reference this file.
+#
+# Quick start (no dependencies — in-memory store, recommended default):
+#   docker compose up --build
+#   # -> http://localhost:8088/health  and the /core/v5/... routes
+#
+# KV/Redis parity (exercise the @vercel/kv code path against local Redis):
+#   STORE_BACKEND=kv docker compose --profile kv up --build
+#   # The `redis-rest` proxy speaks the Upstash REST protocol that @vercel/kv
+#   # expects (a plain Redis cannot back @vercel/kv directly — see below).
+
+services:
+  # The fake service. Built from the local multi-stage Dockerfile; the entrypoint
+  # is `node dist/server.js`, which selects the store backend from STORE_BACKEND
+  # via the Task 07 factory.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Default to the in-memory store so `docker compose up` works with no extra
+    # wiring. Flip STORE_BACKEND=kv (with --profile kv) for Redis-backed parity.
+    environment:
+      PORT: "${PORT:-8088}"
+      STORE_BACKEND: "${STORE_BACKEND:-memory}"
+      # KV REST credentials — used only when STORE_BACKEND=kv. They point at the
+      # `redis-rest` proxy (started by the `kv` profile), not at Redis directly.
+      KV_REST_API_URL: "${KV_REST_API_URL:-http://redis-rest:80}"
+      KV_REST_API_TOKEN: "${KV_REST_API_TOKEN:-local_dev_token}"
+    ports:
+      - "${PORT:-8088}:${PORT:-8088}"
+    restart: unless-stopped
+
+  # Local Redis for KV-style lifecycle state. Runs alongside the app; the
+  # in-memory default ignores it, so the basic run needs nothing from it. Not
+  # published to the host (the app and the `redis-rest` proxy reach it over the
+  # compose network as `redis:6379`) — this avoids clashing with a Redis already
+  # bound to 6379 on the host. Uncomment `ports` if you want host access.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+
+  # Upstash-REST shim in front of Redis. @vercel/kv (Task 07) talks the Upstash
+  # HTTP REST protocol, NOT the raw Redis TCP protocol, so a plain Redis cannot
+  # back it directly; this proxy bridges the two for local KV parity. Only
+  # started under the `kv` profile (the in-memory default does not need it).
+  redis-rest:
+    image: hiendinhngoc/serverless-redis-http:latest
+    profiles: ["kv"]
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: "${KV_REST_API_TOKEN:-local_dev_token}"
+      SRH_CONNECTION_STRING: "redis://redis:6379"
+    depends_on:
+      - redis
+    restart: unless-stopped

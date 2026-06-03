@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Local Docker dev environment (app + Redis)
 type: infra
 complexity: medium
@@ -33,10 +33,10 @@ deployment target (TechSpec "Development Sequencing" step 11; ADR-004 refined by
 </requirements>
 
 ## Subtasks
-- [ ] 10.1 Write a multi-stage `Dockerfile` (build stage → runtime stage running `dist/server.js`).
-- [ ] 10.2 Write `docker-compose.yml` with the app service and a Redis service.
-- [ ] 10.3 Wire env vars (`PORT`, `STORE_BACKEND`, KV/Redis connection) for local runs.
-- [ ] 10.4 Verify `docker compose up` serves the health check and a sample order locally.
+- [x] 10.1 Write a multi-stage `Dockerfile` (build stage → runtime stage running `dist/server.js`).
+- [x] 10.2 Write `docker-compose.yml` with the app service and a Redis service.
+- [x] 10.3 Wire env vars (`PORT`, `STORE_BACKEND`, KV/Redis connection) for local runs.
+- [x] 10.4 Verify `docker compose up` serves the health check and a sample order locally.
 
 ## Implementation Details
 Create `Dockerfile` and `docker-compose.yml` at the repo root. The runtime entrypoint is `dist/server.js`
@@ -66,11 +66,11 @@ Sequencing" step 11.
 
 ## Tests
 - Unit tests:
-  - [ ] `docker-compose.yml` parses and defines both an `app` and a `redis` service (config-lint/parse test).
-  - [ ] The compose `app` service sets `PORT` and `STORE_BACKEND` env vars.
+  - [x] `docker-compose.yml` parses and defines both an `app` and a `redis` service (config-lint/parse test).
+  - [x] The compose `app` service sets `PORT` and `STORE_BACKEND` env vars.
 - Integration tests:
-  - [ ] `docker build` succeeds and the resulting image runs `node dist/server.js` (build + boot smoke test).
-  - [ ] Against the running container, `GET /health` returns 200 and `POST /core/v5/orders` with `4000000000000010` returns a captured order (lifecycle parity with the in-process tests).
+  - [x] `docker build` succeeds and the resulting image runs `node dist/server.js` (build + boot smoke test).
+  - [x] Against the running container, `GET /health` returns 200 and `POST /core/v5/orders` with `4000000000000010` returns a captured order (lifecycle parity with the in-process tests).
 - Test coverage target: >=80%
 - All tests must pass
 

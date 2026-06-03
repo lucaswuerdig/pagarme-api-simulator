@@ -1,0 +1,40 @@
+# Keep the build context small and reproducible: copy only package manifests,
+# tsconfig.json, and src/ into the image (see Dockerfile). Everything below is
+# either reinstalled (node_modules), rebuilt (dist), or irrelevant at runtime.
+
+# Dependencies & build output (reinstalled / recompiled inside the image)
+node_modules/
+dist/
+
+# Test coverage & local tooling artifacts
+coverage/
+.vercel/
+
+# Environment files (never bake secrets into the image)
+.env
+.env.*
+
+# Version control & CI/CD (not needed at runtime; Docker is local-dev-only)
+.git/
+.gitignore
+.github/
+
+# Tests, specs, agent/compozy tooling, and editor config
+tests/
+tsconfig.test.json
+vitest.config.ts
+eslint.config.mjs
+.compozy/
+.claude/
+.agents/
+
+# Docker sources themselves
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs & OS cruft
+README.md
+*.md
+*.log
+.DS_Store

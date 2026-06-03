@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: HTTP routes (orders, capture, cancel, tokens, health, reset)
 type: backend
 complexity: high
@@ -36,12 +36,12 @@ status (200 for business outcomes, 5xx only for the outage card) — TechSpec "A
 </requirements>
 
 ## Subtasks
-- [ ] 6.1 Implement `POST /core/v5/orders`: resolve outcome, mint ids, persist record, return order body or 5xx.
-- [ ] 6.2 Implement `POST /core/v5/charges/:id/capture`: look up record, set captured, return charge body.
-- [ ] 6.3 Implement `DELETE /core/v5/charges/:id`: look up record, set voided/refunded, return charge body with canceled/refunded amount.
-- [ ] 6.4 Implement `POST /core/v5/tokens`: resolve token outcome, return token body.
-- [ ] 6.5 Implement `GET /health` and the test-only `POST /__reset`.
-- [ ] 6.6 Mount all routers on the app from Task 01 with `OrderStore` injected.
+- [x] 6.1 Implement `POST /core/v5/orders`: resolve outcome, mint ids, persist record, return order body or 5xx.
+- [x] 6.2 Implement `POST /core/v5/charges/:id/capture`: look up record, set captured, return charge body.
+- [x] 6.3 Implement `DELETE /core/v5/charges/:id`: look up record, set voided/refunded, return charge body with canceled/refunded amount.
+- [x] 6.4 Implement `POST /core/v5/tokens`: resolve token outcome, return token body.
+- [x] 6.5 Implement `GET /health` and the test-only `POST /__reset`.
+- [x] 6.6 Mount all routers on the app from Task 01 with `OrderStore` injected.
 
 ## Implementation Details
 Create route modules under `src/routes/` (orders, charges [capture + cancel], tokens, health, reset) and
@@ -74,18 +74,18 @@ parameter so Task 07's KV store drops in without route changes.
 
 ## Tests
 - Unit tests:
-  - [ ] The order handler returns 5xx for the `gateway_unavailable` card and 200 for all other outcomes.
-  - [ ] Capture handler against an unknown `charge_id` returns 200 with `last_transaction.status = "with_error"`, `success: false`.
+  - [x] The order handler returns 5xx for the `gateway_unavailable` card and 200 for all other outcomes.
+  - [x] Capture handler against an unknown `charge_id` returns 200 with `last_transaction.status = "with_error"`, `success: false`.
 - Integration tests (supertest, in-memory store):
-  - [ ] `POST /core/v5/orders` with `4000000000000010` returns 200 with `captured`/`success: true`.
-  - [ ] `POST /core/v5/orders` with `4000000000000002` returns 200 with `not_authorized`/`success: false`.
-  - [ ] `POST /core/v5/orders` with `4000000000009999` returns HTTP 500/503.
-  - [ ] Lifecycle: pre-auth order (`...0028`) → `POST /core/v5/charges/:id/capture` with the returned id → 200 `captured`.
-  - [ ] Lifecycle: sale → `DELETE /core/v5/charges/:id` → 200 with `voided` and `canceled_amount`.
-  - [ ] `POST /core/v5/tokens` returns 200/201 with `id` and `card.id`.
-  - [ ] `GET /health` returns 200 `{ "status": "ok" }`.
-  - [ ] `POST /__reset` then capture against a pre-reset `charge_id` resolves as not-found (body-level error).
-  - [ ] A request with no/invalid `Authorization` header still succeeds (header ignored).
+  - [x] `POST /core/v5/orders` with `4000000000000010` returns 200 with `captured`/`success: true`.
+  - [x] `POST /core/v5/orders` with `4000000000000002` returns 200 with `not_authorized`/`success: false`.
+  - [x] `POST /core/v5/orders` with `4000000000009999` returns HTTP 500/503.
+  - [x] Lifecycle: pre-auth order (`...0028`) → `POST /core/v5/charges/:id/capture` with the returned id → 200 `captured`.
+  - [x] Lifecycle: sale → `DELETE /core/v5/charges/:id` → 200 with `voided` and `canceled_amount`.
+  - [x] `POST /core/v5/tokens` returns 200/201 with `id` and `card.id`.
+  - [x] `GET /health` returns 200 `{ "status": "ok" }`.
+  - [x] `POST /__reset` then capture against a pre-reset `charge_id` resolves as not-found (body-level error).
+  - [x] A request with no/invalid `Authorization` header still succeeds (header ignored).
 - Test coverage target: >=80%
 - All tests must pass
 

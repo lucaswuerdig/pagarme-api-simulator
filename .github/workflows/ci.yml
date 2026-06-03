@@ -1,0 +1,94 @@
+# CI/CD pipeline for the fake Pagar.me API (ADR-007).
+#
+# Two jobs:
+#   1. test   — runs on every push and pull request. Installs deps, lints,
+#               type-checks, builds, and runs the vitest suite against the
+#               in-memory store (no live Vercel KV needed in CI — ADR-006).
+#   2. deploy — gated on `test` and restricted to pushes to `main`, so only
+#               commits that pass the suite on the default branch ship to
+#               production. Deploys with the Vercel CLI from a prebuilt output.
+#
+# Required GitHub repository secrets (Settings → Secrets and variables →
+# Actions). These are consumed ONLY by the `deploy` job; the `test` job needs
+# none of them. Never hardcode their values — always reference them as
+# `${{ secrets.* }}`. (Mirror this list in the README / connection guide — Task 11.)
+#   - VERCEL_TOKEN      : Vercel access token (least-privilege) used by the CLI.
+#   - VERCEL_ORG_ID     : Vercel organization/team ID for the project.
+#   - VERCEL_PROJECT_ID : Vercel project ID to deploy to.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Cancel an in-progress run when a newer commit is pushed to the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint & test (in-memory store)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # STORE_BACKEND is intentionally left unset → the suite runs against
+      # InMemoryOrderStore, so CI requires no live Vercel KV (ADR-006).
+      - name: Test
+        run: npm test
+
+  deploy:
+    name: Deploy to Vercel (production)
+    needs: test
+    # Production deploys only on a push to the default branch — never on pull
+    # requests or feature branches — so only test-passing `main` commits ship.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      # The Vercel CLI reads the org/project from these env vars; the token is
+      # passed explicitly per command below. All three come from GitHub secrets.
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel production environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build prebuilt output
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt output to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: OrderStore interface, in-memory impl & opaque ID util
 type: backend
 complexity: medium
@@ -33,10 +33,10 @@ keeps the sale→capture→cancel lifecycle coherent (TechSpec "Core Interfaces"
 </requirements>
 
 ## Subtasks
-- [ ] 3.1 Define the async `OrderStore` interface in `src/store/orderStore.ts`.
-- [ ] 3.2 Implement `InMemoryOrderStore` (Map keyed by `charge_id`) with create/get/update/clear.
-- [ ] 3.3 Implement the opaque ID utility minting prefixed, unique identifiers.
-- [ ] 3.4 Ensure `update` on a missing `charge_id` returns `undefined` without throwing.
+- [x] 3.1 Define the async `OrderStore` interface in `src/store/orderStore.ts`.
+- [x] 3.2 Implement `InMemoryOrderStore` (Map keyed by `charge_id`) with create/get/update/clear.
+- [x] 3.3 Implement the opaque ID utility minting prefixed, unique identifiers.
+- [x] 3.4 Ensure `update` on a missing `charge_id` returns `undefined` without throwing.
 
 ## Implementation Details
 Create `src/store/orderStore.ts` (interface), `src/store/inMemoryOrderStore.ts` (Map impl), and
@@ -66,14 +66,14 @@ mocked KV client. See ADR-005 for opaque-ID and reset rationale.
 
 ## Tests
 - Unit tests:
-  - [ ] `create` then `get(chargeId)` returns the same `OrderRecord`.
-  - [ ] `update(chargeId, { status: "canceled" })` mutates and returns the patched record.
-  - [ ] `update("missing_id", ...)` returns `undefined` and does not throw.
-  - [ ] `clear()` empties the store so a subsequent `get` returns `undefined`.
-  - [ ] ID util produces values matching `^or_fake_`, `^ch_fake_`, `^card_fake_`, `^tran_fake_` prefixes.
-  - [ ] 1000 minted IDs of one prefix are all unique (collision check).
+  - [x] `create` then `get(chargeId)` returns the same `OrderRecord`.
+  - [x] `update(chargeId, { status: "canceled" })` mutates and returns the patched record.
+  - [x] `update("missing_id", ...)` returns `undefined` and does not throw.
+  - [x] `clear()` empties the store so a subsequent `get` returns `undefined`.
+  - [x] ID util produces values matching `^or_fake_`, `^ch_fake_`, `^card_fake_`, `^tran_fake_` prefixes.
+  - [x] 1000 minted IDs of one prefix are all unique (collision check).
 - Integration tests:
-  - [ ] Full lifecycle on `InMemoryOrderStore`: create (paid) → update to captured → update to canceled, reading the record at each step.
+  - [x] Full lifecycle on `InMemoryOrderStore`: create (paid) → update to captured → update to canceled, reading the record at each step. _(modeled type-correctly as `authorized_pending_capture` → `paid` (capture) → `canceled`; "captured"/"voided" are transaction-level statuses, not `ChargeStatus` members.)_
 - Test coverage target: >=80%
 - All tests must pass
 

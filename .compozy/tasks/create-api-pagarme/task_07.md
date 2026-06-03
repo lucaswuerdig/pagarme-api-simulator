@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Vercel KV store implementation & store factory
 type: backend
 complexity: medium
@@ -33,10 +33,10 @@ for local dev and CI (TechSpec "Data Models" / "System Architecture"; ADR-006).
 </requirements>
 
 ## Subtasks
-- [ ] 7.1 Implement `KvOrderStore` create/get/update with `ch:<chargeId>` keys and TTL.
-- [ ] 7.2 Implement prefix-scoped `clear()` (scan + delete `ch:*`), never `flushall`.
-- [ ] 7.3 Implement the store factory selecting backend by `STORE_BACKEND`.
-- [ ] 7.4 Run the Task 03 store contract suite against the KV impl with a mocked client.
+- [x] 7.1 Implement `KvOrderStore` create/get/update with `ch:<chargeId>` keys and TTL.
+- [x] 7.2 Implement prefix-scoped `clear()` (scan + delete `ch:*`), never `flushall`.
+- [x] 7.3 Implement the store factory selecting backend by `STORE_BACKEND`.
+- [x] 7.4 Run the Task 03 store contract suite against the KV impl with a mocked client.
 
 ## Implementation Details
 Create `src/store/kvOrderStore.ts` and a factory (e.g., `src/store/index.ts`). The `OrderStore` interface
@@ -65,13 +65,13 @@ by routes/tests (`memory`).
 
 ## Tests
 - Unit tests:
-  - [ ] `create` writes key `ch:<chargeId>` with the configured TTL (assert against mocked `kv.set` args).
-  - [ ] `get("ch_x")` reads `ch:ch_x` and deserializes the record (mocked `kv.get`).
-  - [ ] `update` on a missing key returns `undefined`.
-  - [ ] `clear()` deletes only `ch:*` keys (scan + del), and never calls `flushall`.
-  - [ ] Factory returns `KvOrderStore` for `STORE_BACKEND=kv` and `InMemoryOrderStore` otherwise.
+  - [x] `create` writes key `ch:<chargeId>` with the configured TTL (assert against mocked `kv.set` args).
+  - [x] `get("ch_x")` reads `ch:ch_x` and deserializes the record (mocked `kv.get`).
+  - [x] `update` on a missing key returns `undefined`.
+  - [x] `clear()` deletes only `ch:*` keys (scan + del), and never calls `flushall`.
+  - [x] Factory returns `KvOrderStore` for `STORE_BACKEND=kv` and `InMemoryOrderStore` otherwise.
 - Integration tests:
-  - [ ] The shared store contract suite from Task 03 passes against `KvOrderStore` with a mocked `@vercel/kv` client.
+  - [x] The shared store contract suite from Task 03 passes against `KvOrderStore` with a mocked `@vercel/kv` client.
 - Test coverage target: >=80%
 - All tests must pass
 

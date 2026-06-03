@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 title: Project scaffold & Express bootstrap
 type: infra
 complexity: medium
@@ -32,11 +32,11 @@ no dependencies (TechSpec "Development Sequencing" step 1).
 </requirements>
 
 ## Subtasks
-- [ ] 1.1 Create `package.json` with Express, TypeScript, vitest, supertest, and the build/start/dev/lint/test scripts.
-- [ ] 1.2 Create `tsconfig.json` targeting a modern Node runtime and emitting to `dist/`.
-- [ ] 1.3 Create the Express app in `src/server.ts` that parses JSON and is exported as a module, with a direct-run listener honoring `PORT`.
-- [ ] 1.4 Configure linting and `vitest` (config + test directory convention).
-- [ ] 1.5 Add a smoke test proving the app boots and returns 404 JSON for an unknown route.
+- [x] 1.1 Create `package.json` with Express, TypeScript, vitest, supertest, and the build/start/dev/lint/test scripts.
+- [x] 1.2 Create `tsconfig.json` targeting a modern Node runtime and emitting to `dist/`.
+- [x] 1.3 Create the Express app in `src/server.ts` that parses JSON and is exported as a module, with a direct-run listener honoring `PORT`.
+- [x] 1.4 Configure linting and `vitest` (config + test directory convention).
+- [x] 1.5 Add a smoke test proving the app boots and returns 404 JSON for an unknown route.
 
 ## Implementation Details
 Create the project root tooling and the Express bootstrap. The app must be exported (not only listened
@@ -70,11 +70,11 @@ resolver, or routes here — keep the surface minimal.
 
 ## Tests
 - Unit tests:
-  - [ ] `src/server.ts` exports an Express app instance (import does not throw).
-  - [ ] Listener uses `process.env.PORT` when set and defaults to `8088` when unset.
+  - [x] `src/server.ts` exports an Express app instance (import does not throw).
+  - [x] Listener uses `process.env.PORT` when set and defaults to `8088` when unset.
 - Integration tests:
-  - [ ] `GET /` (no routes mounted) returns HTTP 404 with a JSON content type via supertest.
-  - [ ] A request with a JSON body to the bare app is parsed (body middleware active) — asserted on a temporary echo handler in the test.
+  - [x] `GET /` (no routes mounted) returns HTTP 404 with a JSON content type via supertest.
+  - [x] A request with a JSON body to the bare app is parsed (body middleware active) — asserted on a temporary echo handler in the test.
 - Test coverage target: >=80%
 - All tests must pass
 
