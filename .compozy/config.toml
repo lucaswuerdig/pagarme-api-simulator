@@ -1,0 +1,30 @@
+[defaults]
+ide = "claude"
+model = "opus-4-8"
+reasoning_effort = "high"
+access_mode = "full"
+timeout = "10m"
+tail_lines = 0
+add_dirs = ["../shared"]
+auto_commit = false
+max_retries = 2
+retry_backoff_multiplier = 1.5
+
+[tasks]
+types = ["frontend", "backend", "docs", "test", "infra", "refactor", "chore", "bugfix"]
+
+[tasks.run]
+include_completed = false
+run_multiple_mode = "enqueued"
+
+[exec]
+output_format = "text"
+
+[fix_reviews]
+concurrent = 2
+batch_size = 3
+include_resolved = false
+
+[fetch_reviews]
+provider = "coderabbit"
+nitpicks = false
