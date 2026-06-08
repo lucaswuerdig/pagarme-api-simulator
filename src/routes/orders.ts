@@ -55,6 +55,9 @@ export function ordersRouter(store: OrderStore): Router {
       cardId: creditCard.card_id,
       cardToken: creditCard.card_token,
     });
+    // Expose the resolved outcome to the structured request logger (Issue 003;
+    // the logger lives in `routes/index.ts` and reads `res.locals`).
+    res.locals.outcome = outcome;
 
     // Simulated gateway outage: the only 5xx path. No record is persisted and no
     // order body is built (`_idea.md` §3.3, §4.1).
@@ -73,7 +76,25 @@ export function ordersRouter(store: OrderStore): Router {
       outcome,
       metadata: body.metadata ?? {},
     };
-    await store.create(record);
+    // Expose the minted charge_id to the request logger (Issue 003). Set before
+    // persistence so a store failure still logs the id it was minting for.
+    res.locals.chargeId = record.chargeId;
+
+    // The KV backend is networked, so persistence can reject (a documented
+    // outage, `_techspec.md` §"Known Risks: KV availability/latency"). Express 4
+    // does not forward a rejected promise from an async handler to any error
+    // middleware, so without this guard the rejection would become an unhandled
+    // rejection and the request would hang until the function times out. Surface
+    // it as a clean 5xx instead — the same shape as the outage card above — per
+    // the TechSpec rule that "a KV failure surfaces as a 5xx" (§"Error handling
+    // conventions").
+    try {
+      await store.create(record);
+    } catch (err) {
+      console.error("orders: store.create failed", err);
+      res.status(503).json({ message: "service unavailable" });
+      return;
+    }
 
     const order = buildOrderResponse(record, {
       card,

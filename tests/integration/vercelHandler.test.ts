@@ -69,7 +69,10 @@ describe("Vercel handler — routes resolve through the catch-all rewrite", () =
 
     expect(canceled.status).toBe(200);
     expect(canceled.body.id).toBe(chargeId);
-    expect(canceled.body.last_transaction.status).toBe("voided");
+    // The order was a captured/`paid` sale, so cancelling it reverses as a
+    // refund (_idea.md §4.3); the point of this test is that the dynamic
+    // `charge_id` reaches the cancel handler at all.
+    expect(canceled.body.last_transaction.status).toBe("refunded");
     expect(canceled.body.last_transaction.success).toBe(true);
   });
 });

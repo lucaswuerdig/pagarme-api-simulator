@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import { createPagarmeApp } from "../../src/server";
+import type { OrderStore } from "../../src/store/orderStore";
 
 /**
  * End-to-end HTTP tests (supertest against the in-process app with the in-memory
@@ -85,6 +86,34 @@ describe("POST /core/v5/orders — per-scenario outcomes", () => {
 
     expect([500, 503]).toContain(res.status);
   });
+
+  it("surfaces a store failure as a 5xx instead of hanging the request", async () => {
+    // A store whose create() rejects, mirroring a Vercel KV outage. Without the
+    // handler's try/catch this rejection would be an unhandled promise rejection
+    // under Express 4 (no error middleware), and the request would hang until the
+    // function times out (`_techspec.md` §"Error handling conventions": a KV
+    // failure surfaces as a 5xx).
+    const failingStore: OrderStore = {
+      create: () => Promise.reject(new Error("KV unavailable")),
+      get: () => Promise.resolve(undefined),
+      update: () => Promise.resolve(undefined),
+      clear: () => Promise.resolve(),
+    };
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const res = await request(createPagarmeApp(failingStore))
+        .post("/core/v5/orders")
+        .send(orderBody("4000000000000010"));
+
+      expect([500, 503]).toContain(res.status);
+      expect(res.body.message).toBe("service unavailable");
+      // The outage is logged so a real KV failure is diagnosable.
+      expect(errorSpy).toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });
 
 describe("charge lifecycle — capture resolves the stored charge_id", () => {
@@ -111,12 +140,13 @@ describe("charge lifecycle — capture resolves the stored charge_id", () => {
 });
 
 describe("charge lifecycle — cancel resolves the stored charge_id and amount", () => {
-  it("sale (4000000000000010) → DELETE → 200 voided with canceled_amount", async () => {
+  it("captured sale (4000000000000010) → DELETE → 200 refunded with refunded_amount", async () => {
     const app: Express = createPagarmeApp();
 
     const created = await request(app)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));
+    expect(created.body.status).toBe("paid");
     const chargeId: string = created.body.charges[0].id;
     const amount: number = created.body.charges[0].amount;
 
@@ -124,9 +154,35 @@ describe("charge lifecycle — cancel resolves the stored charge_id and amount",
 
     expect(canceled.status).toBe(200);
     expect(canceled.body.id).toBe(chargeId);
-    expect(canceled.body.last_transaction.status).toBe("voided");
+    // A captured/`paid` sale is reversed as a refund, not a void (_idea.md §4.3).
+    expect(canceled.body.status).toBe("refunded");
+    expect(canceled.body.last_transaction.status).toBe("refunded");
+    expect(canceled.body.last_transaction.operation_type).toBe("refund");
     expect(canceled.body.last_transaction.success).toBe(true);
     // Echoes the original amount saved at sale time (ADR-001).
+    expect(canceled.body.amount).toBe(amount);
+    expect(canceled.body.refunded_amount).toBe(amount);
+  });
+
+  it("uncaptured pre-auth (4000000000000028) → DELETE → 200 voided with canceled_amount", async () => {
+    const app: Express = createPagarmeApp();
+
+    const created = await request(app)
+      .post("/core/v5/orders")
+      .send(orderBody("4000000000000028", "auth_only"));
+    expect(created.body.status).toBe("authorized_pending_capture");
+    const chargeId: string = created.body.charges[0].id;
+    const amount: number = created.body.charges[0].amount;
+
+    const canceled = await request(app).delete(`/core/v5/charges/${chargeId}`);
+
+    expect(canceled.status).toBe(200);
+    expect(canceled.body.id).toBe(chargeId);
+    // An authorization that was never captured is voided, not refunded.
+    expect(canceled.body.status).toBe("canceled");
+    expect(canceled.body.last_transaction.status).toBe("voided");
+    expect(canceled.body.last_transaction.operation_type).toBe("void");
+    expect(canceled.body.last_transaction.success).toBe(true);
     expect(canceled.body.amount).toBe(amount);
     expect(canceled.body.canceled_amount).toBe(amount);
   });
@@ -159,12 +215,16 @@ describe("POST /__reset isolates state", () => {
   it("capture against a pre-reset charge_id resolves as a not-found body error", async () => {
     const app: Express = createPagarmeApp();
 
+    // Use an auth_only pre-auth so the charge is `authorized_pending_capture` and
+    // therefore genuinely capturable — capture now gates on the persisted state
+    // (Issue 004), so a captured-already `paid` sale would (correctly) be
+    // rejected. This test only exercises reset isolation, not capture semantics.
     const created = await request(app)
       .post("/core/v5/orders")
-      .send(orderBody("4000000000000010"));
+      .send(orderBody("4000000000000028", "auth_only"));
     const chargeId: string = created.body.charges[0].id;
 
-    // Capture succeeds before the reset (the charge exists).
+    // Capture succeeds before the reset (the charge exists and is capturable).
     const before = await request(app).post(`/core/v5/charges/${chargeId}/capture`).send({});
     expect(before.status).toBe(200);
     expect(before.body.last_transaction.status).toBe("captured");
