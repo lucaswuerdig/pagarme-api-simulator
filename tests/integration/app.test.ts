@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import { app, createApp } from "../../src/server";
+import { authedRequest } from "../helpers/authedRequest";
 
 describe("bare app HTTP behaviour", () => {
   it("returns HTTP 404 with a JSON content type for an unknown route", async () => {
-    const res = await request(app).get("/");
+    // The always-on token gate (ADR-003) runs before the 404 fallback, so an
+    // unknown path needs a valid token to fall through to the not-found handler;
+    // unauthenticated it would (correctly) return 401 instead.
+    const res = await authedRequest(app).get("/");
 
     expect(res.status).toBe(404);
     expect(res.headers["content-type"]).toMatch(/application\/json/);

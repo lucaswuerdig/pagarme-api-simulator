@@ -7,40 +7,23 @@
  * relied on by the consuming app. Mounted at the root, outside the `/core/v5`
  * prefix.
  *
- * Because the fake is designed as a single always-on shared instance (the whole
- * team points at one homologation URL), an unauthenticated global clear lets any
- * caller — or one suite's teardown — wipe another suite's in-flight orders
- * mid-run (Issue 005). The route is therefore guarded by an optional shared
- * secret: when `RESET_SECRET` is set, a request must carry a matching
- * `x-reset-secret` header or it is rejected with 401, making teardown opt-in for
- * a controlled caller. When the secret is unset (local dev, hermetic CI) the
- * route stays open, preserving the original behavior. The env var is read once
- * at build time, mirroring `resolvePort`/`createStore`.
+ * Because the fake is a single always-on shared instance, an unauthenticated
+ * global clear would let any caller — or one suite's teardown — wipe another
+ * suite's in-flight orders (Issue 005). That risk is now closed by the shared
+ * token-auth gate (`requireToken`), which `registerRoutes` mounts immediately
+ * before this router (ADR-002, ADR-003): a caller proves authorization the same
+ * way as for every `/core/v5` route — a valid token via `Authorization: Basic`.
+ * The earlier per-route shared-secret header guard is retired, so once a request
+ * is past the gate the clear is unconditional.
  */
 
 import { Router, type Request, type Response } from "express";
 import type { OrderStore } from "../store/orderStore";
 
-/** Request header carrying the shared reset secret on a guarded `POST /__reset`. */
-export const RESET_SECRET_HEADER = "x-reset-secret";
-
-/**
- * Build the `POST /__reset` router backed by the injected {@link OrderStore},
- * optionally guarded by `RESET_SECRET` (see module docs). `env` is a parameter so
- * tests can inject the secret without mutating the ambient process environment.
- */
-export function resetRouter(store: OrderStore, env: NodeJS.ProcessEnv = process.env): Router {
+/** Build the `POST /__reset` router backed by the injected {@link OrderStore}. */
+export function resetRouter(store: OrderStore): Router {
   const router = Router();
-  const secret = env.RESET_SECRET;
-  router.post("/__reset", async (req: Request, res: Response) => {
-    // Guard only when a secret is configured; an open instance is unchanged.
-    if (secret && req.get(RESET_SECRET_HEADER) !== secret) {
-      res.status(401).json({
-        error: "unauthorized",
-        message: "POST /__reset requires a valid x-reset-secret header.",
-      });
-      return;
-    }
+  router.post("/__reset", async (_req: Request, res: Response) => {
     await store.clear();
     res.status(204).end();
   });

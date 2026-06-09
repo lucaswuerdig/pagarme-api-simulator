@@ -23,6 +23,7 @@ selected deterministically from the incoming card number/token via a fixed
 ## Contents
 
 - [Endpoints](#endpoints)
+- [Authentication](#authentication)
 - [Magic-card catalog](#magic-card-catalog)
 - [The `/__reset` test helper](#the-__reset-test-helper)
 - [Local development](#local-development)
@@ -51,8 +52,42 @@ declined, transaction error, order failed — always return **`200`** with the
 result in the body; a simulated gateway outage returns **`5xx`**; tokenization
 returns **`201`**; `/__reset` returns **`204`**. Capture/cancel against an
 unknown `charge_id` returns a body-level error (`last_transaction.status:
-with_error`, `success: false`) at HTTP `200`. The `Authorization` header is
-accepted and ignored — the fake never validates the API key (`_idea.md` §2).
+with_error`, `success: false`) at HTTP `200`. Every route except `GET /health`
+requires a valid token in the `Authorization` header — see
+[Authentication](#authentication); a missing or unlisted token returns `401`
+(`_idea.md` §2, [ADR-001](.compozy/tasks/token-auth-middleware/adrs/adr-001.md)).
+
+## Authentication
+
+The fake validates an **API token** on every protected request. All
+`/core/v5/...` routes **and** `POST /__reset` require a valid token; only
+`GET /health` is open (a liveness probe needs no credential).
+
+Tokens travel in the real Pagar.me v5 form — `Authorization: Basic
+base64("<token>:")`, the token as the username with an **empty** password:
+
+```bash
+# `test_token` -> base64("test_token:") == dGVzdF90b2tlbjo=
+curl -s http://localhost:8088/health \
+  -H 'authorization: Basic dGVzdF90b2tlbjo='   # /health is open; token optional here
+```
+
+A request with a missing, malformed, or unlisted token is rejected **before** any
+business logic with `HTTP 401` and the body `{ "error": "unauthorized", "message":
+"A valid API token is required." }`. This lets the consuming app exercise its real
+"invalid key → 401" path by sending an unlisted token
+([ADR-001](.compozy/tasks/token-auth-middleware/adrs/adr-001.md)).
+
+Valid tokens are a **fixed, committed allowlist** in
+[`src/auth/tokens.ts`](src/auth/tokens.ts) — they are **not** environment-configured.
+Add or revoke a token by editing that file and redeploying, exactly like the
+[magic-card catalog](#magic-card-catalog). The committed `test_token` is the
+clearly-fake homologation value the test suite uses; the `/__reset` and `/core/v5`
+examples below carry its `Authorization` header.
+
+The destructive `POST /__reset` helper is covered by this same gate — one credential
+model across the whole protected surface, with no separate per-endpoint secret
+([ADR-002](.compozy/tasks/token-auth-middleware/adrs/adr-002.md)).
 
 ## Magic-card catalog
 
@@ -113,8 +148,14 @@ Drive the **approved + captured** happy path with the `4000000000000010` card:
 ```bash
 curl -s -X POST http://localhost:8088/core/v5/orders \
   -H 'content-type: application/json' \
+  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
   --data-binary @order.json
 ```
+
+> The `authorization` header carries `base64("test_token:")` — the homologation
+> token from [`src/auth/tokens.ts`](src/auth/tokens.ts) (see
+> [Authentication](#authentication)). Drop it, or send an unlisted token, and the
+> request returns `401` instead of the order body.
 
 The fake responds **`HTTP 200`** with `status: "paid"` and
 `charges[0].last_transaction` carrying `status: "captured"` and `success: true`
@@ -130,8 +171,13 @@ the stored order/charge lifecycle state so a test suite starts from a clean slat
 and a `charge_id` created before the reset resolves as not-found afterwards. It
 returns `204 No Content`.
 
+`/__reset` is protected by the token gate (see [Authentication](#authentication)),
+so the request must carry a valid `Authorization` header:
+
 ```bash
-curl -s -X POST http://localhost:8088/__reset -o /dev/null -w '%{http_code}\n'   # -> 204
+curl -s -X POST http://localhost:8088/__reset \
+  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
+  -o /dev/null -w '%{http_code}\n'   # -> 204 (omit the header -> 401)
 ```
 
 On Vercel KV it deletes only keys under the `ch:` prefix (scan + delete, never
@@ -206,6 +252,12 @@ local `.env` (see [`.env.example`](.env.example)).
 
 `KV_REST_API_URL` and `KV_REST_API_TOKEN` are provisioned by the Vercel KV
 integration in the Vercel project.
+
+The **API tokens** that authenticate requests (see
+[Authentication](#authentication)) are **not** environment variables. They live in
+the committed allowlist [`src/auth/tokens.ts`](src/auth/tokens.ts) and are changed by
+editing that file and redeploying — there is nothing to set in `.env` or the Vercel
+project for them.
 
 ## Deploy pipeline (GitHub → Vercel)
 

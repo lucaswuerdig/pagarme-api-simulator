@@ -3,12 +3,19 @@ import request from "supertest";
 import type { Express } from "express";
 import { createPagarmeApp } from "../../src/server";
 import type { OrderStore } from "../../src/store/orderStore";
+import { authedRequest } from "../helpers/authedRequest";
 
 /**
  * End-to-end HTTP tests (supertest against the in-process app with the in-memory
  * store). They drive each magic-card scenario, the full sale→capture and
  * sale→cancel lifecycles against the stored `charge_id`, tokenization, health,
  * and the `/__reset` isolation helper — the acceptance contract for Task 06.
+ *
+ * Protected routes now sit behind the always-on token gate (ADR-001), so every
+ * `/core/v5` and `/__reset` call goes through {@link authedRequest}, which presets
+ * the `Authorization` header with the homologation `test_token`. `GET /health`
+ * stays open and is called with a bare `request(...)`. The dedicated gate suite
+ * below exercises the unauthenticated and unlisted-token rejections directly.
  *
  * Each `app` is freshly created so its injected store starts empty; lifecycle
  * tests reuse a single app so state persists across the request sequence.
@@ -46,7 +53,7 @@ function orderBody(number: string, operationType = "auth_and_capture"): Record<s
 
 describe("POST /core/v5/orders — per-scenario outcomes", () => {
   it("approves and captures the 4000000000000010 card (200, success:true)", async () => {
-    const res = await request(createPagarmeApp())
+    const res = await authedRequest(createPagarmeApp())
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));
 
@@ -67,7 +74,7 @@ describe("POST /core/v5/orders — per-scenario outcomes", () => {
   });
 
   it("declines the 4000000000000002 card (200, not_authorized/success:false)", async () => {
-    const res = await request(createPagarmeApp())
+    const res = await authedRequest(createPagarmeApp())
       .post("/core/v5/orders")
       .send(orderBody("4000000000000002"));
 
@@ -80,7 +87,7 @@ describe("POST /core/v5/orders — per-scenario outcomes", () => {
   });
 
   it("returns HTTP 500/503 for the 4000000000009999 outage card", async () => {
-    const res = await request(createPagarmeApp())
+    const res = await authedRequest(createPagarmeApp())
       .post("/core/v5/orders")
       .send(orderBody("4000000000009999"));
 
@@ -102,7 +109,7 @@ describe("POST /core/v5/orders — per-scenario outcomes", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      const res = await request(createPagarmeApp(failingStore))
+      const res = await authedRequest(createPagarmeApp(failingStore))
         .post("/core/v5/orders")
         .send(orderBody("4000000000000010"));
 
@@ -120,14 +127,14 @@ describe("charge lifecycle — capture resolves the stored charge_id", () => {
   it("pre-auth order (4000000000000028) → capture the returned id → 200 captured", async () => {
     const app: Express = createPagarmeApp();
 
-    const created = await request(app)
+    const created = await authedRequest(app)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000028", "auth_only"));
     expect(created.status).toBe(200);
     expect(created.body.status).toBe("authorized_pending_capture");
     const chargeId: string = created.body.charges[0].id;
 
-    const captured = await request(app)
+    const captured = await authedRequest(app)
       .post(`/core/v5/charges/${chargeId}/capture`)
       .send({ amount: 1990 });
 
@@ -143,14 +150,14 @@ describe("charge lifecycle — cancel resolves the stored charge_id and amount",
   it("captured sale (4000000000000010) → DELETE → 200 refunded with refunded_amount", async () => {
     const app: Express = createPagarmeApp();
 
-    const created = await request(app)
+    const created = await authedRequest(app)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));
     expect(created.body.status).toBe("paid");
     const chargeId: string = created.body.charges[0].id;
     const amount: number = created.body.charges[0].amount;
 
-    const canceled = await request(app).delete(`/core/v5/charges/${chargeId}`);
+    const canceled = await authedRequest(app).delete(`/core/v5/charges/${chargeId}`);
 
     expect(canceled.status).toBe(200);
     expect(canceled.body.id).toBe(chargeId);
@@ -167,14 +174,14 @@ describe("charge lifecycle — cancel resolves the stored charge_id and amount",
   it("uncaptured pre-auth (4000000000000028) → DELETE → 200 voided with canceled_amount", async () => {
     const app: Express = createPagarmeApp();
 
-    const created = await request(app)
+    const created = await authedRequest(app)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000028", "auth_only"));
     expect(created.body.status).toBe("authorized_pending_capture");
     const chargeId: string = created.body.charges[0].id;
     const amount: number = created.body.charges[0].amount;
 
-    const canceled = await request(app).delete(`/core/v5/charges/${chargeId}`);
+    const canceled = await authedRequest(app).delete(`/core/v5/charges/${chargeId}`);
 
     expect(canceled.status).toBe(200);
     expect(canceled.body.id).toBe(chargeId);
@@ -190,7 +197,7 @@ describe("charge lifecycle — cancel resolves the stored charge_id and amount",
 
 describe("POST /core/v5/tokens", () => {
   it("returns 200/201 with a token id and a card id (_idea.md §8)", async () => {
-    const res = await request(createPagarmeApp())
+    const res = await authedRequest(createPagarmeApp())
       .post("/core/v5/tokens?appId=pk_test_123")
       .send({ card: CARD, type: "card" });
 
@@ -204,7 +211,7 @@ describe("POST /core/v5/tokens", () => {
 });
 
 describe("GET /health", () => {
-  it("returns 200 { status: ok }", async () => {
+  it("returns 200 { status: ok } without a token (open liveness probe)", async () => {
     const res = await request(createPagarmeApp()).get("/health");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: "ok" });
@@ -219,38 +226,56 @@ describe("POST /__reset isolates state", () => {
     // therefore genuinely capturable — capture now gates on the persisted state
     // (Issue 004), so a captured-already `paid` sale would (correctly) be
     // rejected. This test only exercises reset isolation, not capture semantics.
-    const created = await request(app)
+    const created = await authedRequest(app)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000028", "auth_only"));
     const chargeId: string = created.body.charges[0].id;
 
     // Capture succeeds before the reset (the charge exists and is capturable).
-    const before = await request(app).post(`/core/v5/charges/${chargeId}/capture`).send({});
+    const before = await authedRequest(app).post(`/core/v5/charges/${chargeId}/capture`).send({});
     expect(before.status).toBe(200);
     expect(before.body.last_transaction.status).toBe("captured");
 
-    await request(app).post("/__reset").expect(204);
+    await authedRequest(app).post("/__reset").expect(204);
 
     // After the reset the charge is gone → body-level not-found error at 200.
-    const after = await request(app).post(`/core/v5/charges/${chargeId}/capture`).send({});
+    const after = await authedRequest(app).post(`/core/v5/charges/${chargeId}/capture`).send({});
     expect(after.status).toBe(200);
     expect(after.body.last_transaction.status).toBe("with_error");
     expect(after.body.last_transaction.success).toBe(false);
   });
 });
 
-describe("Authorization header is ignored (_idea.md §2)", () => {
-  it("an order with no/invalid Authorization header still succeeds", async () => {
-    const noAuth = await request(createPagarmeApp())
+describe("token gate enforcement on the protected surface (ADR-001/002/003)", () => {
+  it("rejects POST /core/v5/orders with no Authorization header → 401 { error, message }", async () => {
+    const res = await request(createPagarmeApp())
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));
-    expect(noAuth.status).toBe(200);
 
-    const badAuth = await request(createPagarmeApp())
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({
+      error: "unauthorized",
+      message: "A valid API token is required.",
+    });
+  });
+
+  it("rejects POST /core/v5/orders carrying an unlisted token → 401", async () => {
+    const bogus = `Basic ${Buffer.from("not_a_real_token:").toString("base64")}`;
+    const res = await request(createPagarmeApp())
       .post("/core/v5/orders")
-      .set("Authorization", "Bearer not-a-real-key")
+      .set("Authorization", bogus)
       .send(orderBody("4000000000000010"));
-    expect(badAuth.status).toBe(200);
-    expect(badAuth.body.charges[0].last_transaction.success).toBe(true);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("unauthorized");
+  });
+
+  it("accepts POST /core/v5/orders with the homologation test_token (happy path preserved)", async () => {
+    const res = await authedRequest(createPagarmeApp())
+      .post("/core/v5/orders")
+      .send(orderBody("4000000000000010"));
+
+    expect(res.status).toBe(200);
+    expect(res.body.charges[0].last_transaction.success).toBe(true);
   });
 });

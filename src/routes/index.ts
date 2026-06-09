@@ -11,6 +11,7 @@
  */
 
 import type { Express, NextFunction, Request, Response } from "express";
+import { requireToken } from "../auth/middleware";
 import type { OrderStore } from "../store/orderStore";
 import { chargesRouter } from "./charges";
 import { healthRouter } from "./health";
@@ -53,6 +54,11 @@ function logRequests(req: Request, res: Response, next: NextFunction): void {
 /** Register the health, reset, and `/core/v5` Pagar.me routes on `app`. */
 export function registerRoutes(app: Express, store: OrderStore): void {
   app.use(healthRouter());
+  // Always-on token gate (ADR-001/002/003): mounted AFTER the open
+  // `healthRouter` and BEFORE everything below, so `GET /health` stays public
+  // while `POST /__reset` and every `/core/v5` route require a valid token.
+  // Misordering would either expose `/__reset` or block the liveness probe.
+  app.use(requireToken);
   app.use(resetRouter(store));
   // Structured per-request logging runs before the `/core/v5` routers so it
   // wraps every Pagar.me call (TechSpec §"Monitoring and Observability").

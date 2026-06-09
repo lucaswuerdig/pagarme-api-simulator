@@ -19,7 +19,6 @@ import type { TokenRequest } from "../types/pagarme";
 /** Build the `POST /core/v5/tokens` router. Stateless — no store dependency. */
 export function tokensRouter(): Router {
   const router = Router();
-  console.log("teste")
   router.post("/tokens", (req: Request, res: Response) => {
     const body = req.body as TokenRequest;
     const token = buildTokenResponse({

@@ -20,11 +20,15 @@ app therefore has a single, fixed base URL in code.
 
 The fake takes over the role of that single URL **in the test environment**. So
 the integration is a **URL swap, not a key swap**: you change the base URL the
-app talks to, and the fake simply **accepts and ignores** the `Authorization`
-header — it never validates the key
-([`_idea.md` §2](../.compozy/tasks/create-api-pagarme/_idea.md)). The fake
-already serves the `/core/v5/...` routes exactly as the real Pagar.me, so the
-app needs **no changes beyond the base-URL swap**.
+app talks to and keep sending the same `Authorization: Basic base64("<token>:")`
+header it already sends. The one prerequisite is that the token the app presents in
+homologation is on the fake's small committed allowlist
+([`src/auth/tokens.ts`](../src/auth/tokens.ts)) — add the team's homologation token
+there (a one-line edit + redeploy, like a magic card) so the app needs **no key
+change**. The fake validates that token and answers `401` for a missing or unlisted
+one ([`_idea.md` §2](../.compozy/tasks/create-api-pagarme/_idea.md)); otherwise it
+serves the `/core/v5/...` routes exactly as the real Pagar.me, so the app needs **no
+changes beyond the base-URL swap**.
 
 ## What URL to use
 
@@ -92,17 +96,31 @@ After repointing, confirm the fake is reachable and the app sees a healthy
 gateway:
 
 ```bash
-curl -s http://localhost:8088/health     # -> {"status":"ok"}
+curl -s http://localhost:8088/health     # -> {"status":"ok"} (open, no token)
 # deployed:
 # curl -s https://<your-fake>.vercel.app/health
 ```
 
-Then run a credit-card test that drives `POST /core/v5/orders` and pick the
+`GET /health` is open, but every `/core/v5/...` route **and** `POST /__reset` now
+require a valid token in the `Authorization` header (see the README's
+[Authentication](../README.md#authentication) section). Use the same Basic header
+the app sends — here with the example homologation token `test_token`
+(`base64("test_token:")`), which you would replace with your allowlisted token:
+
+```bash
+curl -s -X POST http://localhost:8088/__reset \
+  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
+  -o /dev/null -w '%{http_code}\n'   # -> 204 (omit the header -> 401)
+```
+
+Then run a credit-card test that drives `POST /core/v5/orders` (carrying that same
+`Authorization` header) and pick the
 [magic card](../README.md#magic-card-catalog) for the scenario you want
 (approved, declined, transaction error, order failed, gateway outage). The
 outcome is fully determined by the card number in the request, so tests are
 reproducible. Use [`POST /__reset`](../README.md#the-__reset-test-helper) to
-clear lifecycle state between suites.
+clear lifecycle state between suites. To verify the consuming app's auth-failure
+path, send a **deliberately unlisted** token and confirm it surfaces the `401`.
 
 ## Don't over-trust the fake
 

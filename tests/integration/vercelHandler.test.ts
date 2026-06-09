@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import handler from "../../api/index";
+import { authedRequest } from "../helpers/authedRequest";
 
 /**
  * Integration tests driving the exported Vercel handler (the Express app) with
@@ -42,7 +43,9 @@ function orderBody(number: string): Record<string, unknown> {
 
 describe("Vercel handler — routes resolve through the catch-all rewrite", () => {
   it("POST /core/v5/orders resolves and returns a contract body", async () => {
-    const res = await request(handler).post("/core/v5/orders").send(orderBody("4000000000000010"));
+    const res = await authedRequest(handler)
+      .post("/core/v5/orders")
+      .send(orderBody("4000000000000010"));
 
     expect(res.status).toBe(200);
     // ⭐ contract fields the consuming app reads downstream (`_idea.md` §8).
@@ -60,12 +63,12 @@ describe("Vercel handler — routes resolve through the catch-all rewrite", () =
     // Create then cancel against the returned dynamic `charge_id`, proving the
     // `/core/v5/charges/{charge_id}` path resolves through the same handler with
     // the dynamic segment intact (not collapsed by the rewrite).
-    const created = await request(handler)
+    const created = await authedRequest(handler)
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));
     const chargeId: string = created.body.charges[0].id;
 
-    const canceled = await request(handler).delete(`/core/v5/charges/${chargeId}`);
+    const canceled = await authedRequest(handler).delete(`/core/v5/charges/${chargeId}`);
 
     expect(canceled.status).toBe(200);
     expect(canceled.body.id).toBe(chargeId);
@@ -74,5 +77,17 @@ describe("Vercel handler — routes resolve through the catch-all rewrite", () =
     // `charge_id` reaches the cancel handler at all.
     expect(canceled.body.last_transaction.status).toBe("refunded");
     expect(canceled.body.last_transaction.success).toBe(true);
+  });
+
+  it("enforces the token gate identically — unauthenticated POST /core/v5/orders → 401", async () => {
+    // The handler is built from the same `registerRoutes`, so the always-on gate
+    // (ADR-001/003) guards the Vercel surface exactly as the local app does.
+    const res = await request(handler).post("/core/v5/orders").send(orderBody("4000000000000010"));
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({
+      error: "unauthorized",
+      message: "A valid API token is required.",
+    });
   });
 });
