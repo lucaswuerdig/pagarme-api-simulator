@@ -109,11 +109,13 @@ describe("POST /core/v5/orders — HTTP status policy (_idea.md §3.3)", () => {
     },
   );
 
-  it("defaults amount/code/metadata and resolves the happy path for an empty body", async () => {
+  it("defaults amount/code/metadata and declines an empty body", async () => {
     const res = await authedRequest(createPagarmeApp()).post("/core/v5/orders").send({});
     expect(res.status).toBe(200);
-    // Unknown/absent card → DEFAULT_OUTCOME (approved_captured).
-    expect(res.body.status).toBe("paid");
+    // Absent card → DEFAULT_OUTCOME (declined): the simulator never approves a
+    // card it cannot identify.
+    expect(res.body.status).toBe("failed");
+    expect(res.body.charges[0].last_transaction.success).toBe(false);
     expect(res.body.amount).toBe(0);
     expect(res.body.code).toBe("");
     expect(res.body.customer).toBeUndefined();

@@ -24,20 +24,28 @@ export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
 const SUFFIX_BYTES = 16;
 
 /**
- * Mint an opaque, collision-resistant identifier: the given prefix followed by
- * a random hex suffix.
+ * Mint an opaque, collision-resistant identifier: the given prefix, an optional
+ * scenario marker, then a random hex suffix.
+ *
+ * The marker is how a minted card/token id carries its magic-card scenario, so a
+ * tokenize-then-pay flow reproduces the same outcome as sending the raw number
+ * (`magic/cards.ts`). `mintId("token_fake_", "refused")` yields
+ * `token_fake_refused_<32 hex>`; without a marker the id keeps its original
+ * `<prefix><32 hex>` shape.
  */
-export function mintId(prefix: IdPrefix): string {
-  return `${prefix}${randomBytes(SUFFIX_BYTES).toString("hex")}`;
+export function mintId(prefix: IdPrefix, marker?: string): string {
+  const suffix = randomBytes(SUFFIX_BYTES).toString("hex");
+  return marker ? `${prefix}${marker}_${suffix}` : `${prefix}${suffix}`;
 }
 
 /** Mint an `or_fake_…` order id. */
 export const newOrderId = (): string => mintId(ID_PREFIXES.order);
 /** Mint a `ch_fake_…` charge id (the store key). */
 export const newChargeId = (): string => mintId(ID_PREFIXES.charge);
-/** Mint a `card_fake_…` card id. */
-export const newCardId = (): string => mintId(ID_PREFIXES.card);
+/** Mint a `card_fake_…` card id, optionally carrying a scenario marker. */
+export const newCardId = (marker?: string): string => mintId(ID_PREFIXES.card, marker);
 /** Mint a `tran_fake_…` transaction id. */
 export const newTransactionId = (): string => mintId(ID_PREFIXES.transaction);
-/** Mint a `token_fake_…` card token id (`POST /core/v5/tokens`, `_idea.md` §4.4). */
-export const newTokenId = (): string => mintId(ID_PREFIXES.token);
+/** Mint a `token_fake_…` card token id, optionally carrying a scenario marker
+ *  (`POST /core/v5/tokens`, `_idea.md` §4.4). */
+export const newTokenId = (marker?: string): string => mintId(ID_PREFIXES.token, marker);

@@ -95,8 +95,9 @@ The outcome is chosen by the **card number** sent in the request (or, for
 tokenized flows, by `card_id` / `card_token`). This is the single, canonical
 catalog of scenarios ([ADR-003](.compozy/tasks/create-api-pagarme/adrs/adr-003.md);
 sourced from [`_idea.md` §5](.compozy/tasks/create-api-pagarme/_idea.md)). An
-unrecognized or absent card defaults to **approved + captured**, so the happy
-path needs no special number.
+unrecognized or absent card defaults to **declined** — the simulator never
+approves a card it cannot identify, so a scenario it does not implement can never
+be mistaken for a passing test. Approval has to be asked for by number.
 
 | Card number | Scenario | HTTP | Body outcome |
 |-------------|----------|------|--------------|
@@ -108,10 +109,20 @@ path needs no special number.
 | `4000000000009999` | Gateway unavailable (simulated outage) | `5xx` | no contract body (HTTP `500`/`503`) |
 
 **Tokenized flows.** Every scenario above is also reachable without a raw card
-number, via a magic `card_id` (`card_<suffix>`) or `card_token`
-(`token_<suffix>`) — e.g. `card_refused` and `token_refused` both resolve to
-**declined**. Suffixes: `approved`, `no_capture`, `refused`, `error`, `failed`,
-`unavailable`.
+number, in two ways.
+
+*Hand-written magic ids* — pass a magic `card_id` (`card_<suffix>`) or
+`card_token` (`token_<suffix>`) straight into the order: e.g. `card_refused` and
+`token_refused` both resolve to **declined**. Suffixes: `approved`, `no_capture`,
+`refused`, `error`, `failed`, `unavailable`.
+
+*Real tokenization* — tokenize a magic card at `POST /core/v5/tokens` and pay
+with the id you get back. The minted ids carry the scenario of the card they came
+from (`4000000000000002` → `token_fake_refused_<hex>`), so a tokenize-then-pay
+flow lands on the **same outcome** as sending the raw number. This keeps the
+scenario in the id rather than in a stored token→PAN mapping, so tokenization
+stays stateless and the resolver stays pure. Ids minted before this behaviour
+existed carry no marker and therefore resolve to the **declined** default.
 
 ### Sample request and outcome
 
