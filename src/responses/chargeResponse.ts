@@ -61,17 +61,33 @@ export type CancelKind = "void" | "refund";
 
 /** Request fields read by the cancel/refund route (`_idea.md` §4.3 — empty body or `{ amount }`). */
 export interface CancelResponseInput {
-  /** Canceled/refunded amount; defaults to the full original charge amount. */
+  /** Canceled/refunded amount for THIS call; defaults to the full original charge amount. */
   amount?: number;
   /** `void` (cancel an auth) or `refund` (reverse a captured charge). Defaults to `void`. */
   kind?: CancelKind;
+  /**
+   * Cumulative amount reversed against the charge including this call —
+   * i.e. `record`'s prior {@link OrderRecord.reversedAmount} plus `amount`.
+   * Defaults to `amount` (single-shot cancel/refund, no prior partials).
+   * Drives the echoed `canceled_amount`/`refunded_amount` (which the real
+   * gateway reports as the running total, not the per-call amount) and
+   * whether the charge has fully drained.
+   */
+  totalReversed?: number;
 }
 
 /**
  * Build the cancel/refund success response: a charge with root-level
  * `last_transaction` at `status: voided` (cancel) or `refunded` (refund),
- * `success: true`, plus the matching `canceled_amount`/`refunded_amount`
- * (`_idea.md` §4.3, §8). Following §4.3, the cancel transaction carries no `card`.
+ * `success: true`, plus the matching cumulative `canceled_amount`/
+ * `refunded_amount` (`_idea.md` §4.3, §8). Following §4.3, the cancel
+ * transaction carries no `card`.
+ *
+ * A charge only flips its root `status` to `canceled`/`refunded` once
+ * `totalReversed` reaches `record.amount` — a partial estorno that still
+ * leaves balance keeps the charge in its current (`paid`/
+ * `authorized_pending_capture`) status so further partial calls remain valid
+ * (Issue "estornos parciais sequenciais").
  */
 export function buildCancelResponse(
   record: OrderRecord,
@@ -79,6 +95,8 @@ export function buildCancelResponse(
 ): Charge {
   const isRefund = input.kind === "refund";
   const amount = input.amount ?? record.amount;
+  const totalReversed = input.totalReversed ?? amount;
+  const fullyReversed = totalReversed >= record.amount;
 
   const transaction: Transaction = {
     id: newTransactionId(),
@@ -95,14 +113,14 @@ export function buildCancelResponse(
     id: record.chargeId,
     code: record.code,
     amount: record.amount,
-    status: isRefund ? "refunded" : "canceled",
+    status: fullyReversed ? (isRefund ? "refunded" : "canceled") : record.status,
     payment_method: "credit_card",
     last_transaction: transaction,
   };
   if (isRefund) {
-    charge.refunded_amount = amount;
+    charge.refunded_amount = totalReversed;
   } else {
-    charge.canceled_amount = amount;
+    charge.canceled_amount = totalReversed;
   }
   return charge;
 }

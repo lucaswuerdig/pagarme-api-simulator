@@ -118,10 +118,15 @@ export function chargesRouter(store: OrderStore): Router {
 
   // Cancel/refund a charge. The prior state picks the kind, mirroring the real
   // gateway (`_idea.md` §4.3 — "voided (cancelamento) ou refunded (estorno)"):
-  // a captured/`paid` sale is reversed as a refund → `refunded` +
-  // `refunded_amount`, while any not-yet-captured charge (e.g. an
-  // `authorized_pending_capture` auth) is voided → `voided` + `canceled_amount`.
-  // The persisted status is updated to match so the stored record stays coherent.
+  // a captured/`paid` sale is reversed as a refund → `refunded_amount`, while
+  // any not-yet-captured charge (e.g. an `authorized_pending_capture` auth) is
+  // voided → `canceled_amount`. A charge supports multiple sequential PARTIAL
+  // cancel/refund calls: the store tracks `reversedAmount` accumulated so far,
+  // and each new call is validated against the remaining balance
+  // (`record.amount - reversedAmount`), not against "was there a prior call at
+  // all". The root `status` (and persisted status) only flip to
+  // `canceled`/`refunded` once the balance reaches zero — until then the
+  // charge stays in its current status so it keeps accepting further partials.
   router.delete("/charges/:id", async (req: Request, res: Response) => {
     const chargeId = req.params.id;
     // Expose the looked-up charge_id to the request logger (Issue 003).
@@ -133,25 +138,50 @@ export function chargesRouter(store: OrderStore): Router {
     }
     // Cancel/refund only applies to a charge that still holds funds: a captured
     // `paid` sale (reversed as a refund) or an uncaptured
-    // `authorized_pending_capture` auth (voided). A charge that is already
-    // canceled/refunded, or that never authorized (`failed`), cannot be reversed
-    // — the real gateway rejects the transition, so return a body-level error
-    // rather than a second bogus `voided`/`refunded` transaction (Issue 004).
+    // `authorized_pending_capture` auth (voided). A charge that never
+    // authorized (`failed`) cannot be reversed at all — the real gateway
+    // rejects that transition, so return a body-level error rather than a
+    // bogus `voided`/`refunded` transaction (Issue 004).
     if (record.status !== "paid" && record.status !== "authorized_pending_capture") {
+      // A charge that already fully drained its balance (`canceled`/`refunded`)
+      // gets a balance-specific message — the real problem is "no funds left to
+      // reverse", not an authorization failure (Issue "estornos parciais
+      // sequenciais").
+      const message =
+        record.status === "canceled" || record.status === "refunded"
+          ? `charge ${chargeId} has no balance available to refund`
+          : `charge ${chargeId} cannot be canceled from status ${record.status}`;
+      res.status(200).json(invalidTransition(record, message));
+      return;
+    }
+
+    const body = req.body as CancelRequest;
+    const reversedSoFar = record.reversedAmount ?? 0;
+    const remainingBalance = record.amount - reversedSoFar;
+    const requestedAmount = body.amount ?? remainingBalance;
+
+    if (requestedAmount > remainingBalance) {
       res
         .status(200)
         .json(
           invalidTransition(
             record,
-            `charge ${chargeId} cannot be canceled from status ${record.status}`,
+            `charge ${chargeId} has no balance available to refund: requested ${requestedAmount} exceeds remaining balance ${remainingBalance}`,
           ),
         );
       return;
     }
-    const body = req.body as CancelRequest;
+
     const kind = record.status === "paid" ? "refund" : "void";
-    await store.update(chargeId, { status: kind === "refund" ? "refunded" : "canceled" });
-    res.status(200).json(buildCancelResponse(record, { amount: body.amount, kind }));
+    const totalReversed = reversedSoFar + requestedAmount;
+    const fullyReversed = totalReversed >= record.amount;
+    await store.update(chargeId, {
+      reversedAmount: totalReversed,
+      status: fullyReversed ? (kind === "refund" ? "refunded" : "canceled") : record.status,
+    });
+    res
+      .status(200)
+      .json(buildCancelResponse(record, { amount: requestedAmount, kind, totalReversed }));
   });
 
   return router;

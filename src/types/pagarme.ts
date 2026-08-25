@@ -164,6 +164,15 @@ export interface OrderRecord {
   status: ChargeStatus;
   outcome: Outcome;
   metadata: Record<string, unknown>;
+  /**
+   * Cumulative amount already reversed (voided or refunded) against this
+   * charge across every cancel/refund call so far. Defaults to `0` for a
+   * fresh record. A partial estorno only drains part of `amount`; the charge
+   * keeps accepting further partial cancel/refund calls until this reaches
+   * `amount`, at which point `status` flips to `canceled`/`refunded` (Issue
+   * "estornos parciais sequenciais").
+   */
+  reversedAmount: number;
 }
 
 // ---------------------------------------------------------------------------

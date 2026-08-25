@@ -24,6 +24,7 @@ export function makeSampleRecord(overrides: Partial<OrderRecord> = {}): OrderRec
     status: "paid",
     outcome: "approved_captured",
     metadata: { site: "Minha Loja" },
+    reversedAmount: 0,
     ...overrides,
   };
 }
