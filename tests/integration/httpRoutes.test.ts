@@ -193,6 +193,69 @@ describe("charge lifecycle — cancel resolves the stored charge_id and amount",
     expect(canceled.body.amount).toBe(amount);
     expect(canceled.body.canceled_amount).toBe(amount);
   });
+
+  it("supports multiple sequential partial refunds on the same charge until the balance is exhausted", async () => {
+    const app: Express = createPagarmeApp();
+
+    const created = await authedRequest(app)
+      .post("/core/v5/orders")
+      .send(orderBody("4000000000000010"));
+    expect(created.body.status).toBe("paid");
+    const chargeId: string = created.body.charges[0].id;
+    const amount: number = created.body.charges[0].amount; // 1990
+
+    // First partial estorno: still owes balance, so the charge stays `paid`.
+    const first = await authedRequest(app)
+      .delete(`/core/v5/charges/${chargeId}`)
+      .send({ amount: 800 });
+    expect(first.status).toBe(200);
+    expect(first.body.last_transaction.status).toBe("refunded");
+    expect(first.body.last_transaction.success).toBe(true);
+    expect(first.body.status).toBe("paid");
+    expect(first.body.refunded_amount).toBe(800);
+
+    // Second partial estorno on the SAME charge: must be accepted against the
+    // remaining balance (1190), not rejected as "already reversed".
+    const second = await authedRequest(app)
+      .delete(`/core/v5/charges/${chargeId}`)
+      .send({ amount: 700 });
+    expect(second.status).toBe(200);
+    expect(second.body.last_transaction.status).toBe("refunded");
+    expect(second.body.last_transaction.success).toBe(true);
+    expect(second.body.status).toBe("paid");
+    // Cumulative total across both calls, not just this call's amount.
+    expect(second.body.refunded_amount).toBe(1500);
+
+    // A request exceeding the remaining balance (490) is rejected — a balance
+    // problem, not an authorization problem.
+    const tooMuch = await authedRequest(app)
+      .delete(`/core/v5/charges/${chargeId}`)
+      .send({ amount: 500 });
+    expect(tooMuch.status).toBe(200);
+    expect(tooMuch.body.last_transaction.success).toBe(false);
+    expect(tooMuch.body.last_transaction.gateway_response.errors[0].message).toMatch(
+      /balance/i,
+    );
+    expect(tooMuch.body.status).toBe("paid"); // rejected op persists nothing
+
+    // Final partial estorno exactly drains the remaining balance (490) → the
+    // charge flips to `refunded`.
+    const final = await authedRequest(app)
+      .delete(`/core/v5/charges/${chargeId}`)
+      .send({ amount: 490 });
+    expect(final.status).toBe(200);
+    expect(final.body.status).toBe("refunded");
+    expect(final.body.refunded_amount).toBe(amount);
+
+    // Any further attempt is rejected with a balance message, not an
+    // authorization message.
+    const afterDrained = await authedRequest(app).delete(`/core/v5/charges/${chargeId}`);
+    expect(afterDrained.status).toBe(200);
+    expect(afterDrained.body.last_transaction.success).toBe(false);
+    expect(afterDrained.body.last_transaction.gateway_response.errors[0].message).toMatch(
+      /balance/i,
+    );
+  });
 });
 
 describe("POST /core/v5/tokens", () => {

@@ -75,6 +75,7 @@ export function ordersRouter(store: OrderStore): Router {
       status: PERSISTED_STATUS[outcome],
       outcome,
       metadata: body.metadata ?? {},
+      reversedAmount: 0,
     };
     // Expose the minted charge_id to the request logger (Issue 003). Set before
     // persistence so a store failure still logs the id it was minting for.

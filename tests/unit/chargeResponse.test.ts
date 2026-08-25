@@ -52,18 +52,44 @@ describe("buildCancelResponse — cancel/refund success (_idea.md §4.3, §8)", 
     expect(tx.card).toBeUndefined();
   });
 
-  it("refund: refunded/success with refunded_amount set", () => {
-    const charge = buildCancelResponse(makeSampleRecord({ amount: 1990 }), {
+  it("refund (full amount, no prior partials): refunded/success with refunded_amount set", () => {
+    const charge = buildCancelResponse(makeSampleRecord({ amount: 1990, status: "paid" }), {
       kind: "refund",
-      amount: 990,
+      amount: 1990,
     });
     expect(charge.status).toBe("refunded");
     const tx = charge.last_transaction;
     expect(tx.status).toBe("refunded");
     expect(tx.success).toBe(true);
     expect(tx.operation_type).toBe("refund");
-    expect(charge.refunded_amount).toBe(990);
+    expect(charge.refunded_amount).toBe(1990);
     expect(charge.canceled_amount).toBeUndefined();
+  });
+
+  it("partial refund that doesn't drain the balance keeps the charge's prior status (Issue \"estornos parciais sequenciais\")", () => {
+    const record = makeSampleRecord({ amount: 1990, status: "paid" });
+    const charge = buildCancelResponse(record, { kind: "refund", amount: 990 });
+
+    // Still owes 1000 — the charge stays `paid`, not `refunded`, so it keeps
+    // accepting further partial estornos.
+    expect(charge.status).toBe("paid");
+    const tx = charge.last_transaction;
+    expect(tx.status).toBe("refunded");
+    expect(tx.success).toBe(true);
+    expect(charge.refunded_amount).toBe(990);
+  });
+
+  it("partial refund reports the CUMULATIVE refunded_amount, not just this call's amount", () => {
+    const record = makeSampleRecord({ amount: 1990, status: "paid" });
+    const charge = buildCancelResponse(record, {
+      kind: "refund",
+      amount: 990,
+      totalReversed: 1990,
+    });
+
+    // 1000 already refunded previously + 990 this call = fully drained.
+    expect(charge.status).toBe("refunded");
+    expect(charge.refunded_amount).toBe(1990);
   });
 
   it("defaults the canceled amount to the full original charge amount", () => {
