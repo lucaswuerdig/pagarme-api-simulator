@@ -23,10 +23,15 @@ export type Outcome =
   | "gateway_unavailable"; // 5xx
 
 /**
- * Outcome for any unrecognized (or absent) card, so the common happy path needs
- * no special card number (TechSpec "Core Interfaces").
+ * Outcome for any unrecognized (or absent) card.
+ *
+ * Deliberately `declined`: a simulator that approves what it cannot identify
+ * turns "scenario not implemented" into "test passed", which is how the
+ * tokenized flow silently approved every magic card before the minted-marker
+ * fix below. Approval must be asked for by name — one of the six numbers in
+ * {@link MAGIC_CARD_NUMBERS}, or a minted/magic id that resolves to one.
  */
-export const DEFAULT_OUTCOME: Outcome = "approved_captured";
+export const DEFAULT_OUTCOME: Outcome = "declined";
 
 /**
  * Magic card numbers → outcome (`_idea.md` §5). This table is the canonical
@@ -67,6 +72,45 @@ export const MAGIC_TOKEN_IDS: Readonly<Record<string, Outcome>> = Object.fromEnt
   ]),
 );
 
+/**
+ * Outcome → scenario suffix, derived from {@link TOKENIZED_OUTCOME_SUFFIXES} so
+ * the two directions cannot drift. Used when minting a token/card id that has to
+ * carry its scenario.
+ */
+const OUTCOME_TO_SUFFIX = Object.fromEntries(
+  Object.entries(TOKENIZED_OUTCOME_SUFFIXES).map(([suffix, outcome]) => [outcome, suffix]),
+) as Readonly<Record<Outcome, string>>;
+
+/**
+ * The scenario marker to embed in an id minted for `outcome` — the bridge
+ * between tokenization and the later authorization.
+ *
+ * `POST /core/v5/tokens` resolves the outcome from the raw card number and mints
+ * `token_fake_<marker>_<hex>`, so when the consuming app pays with that opaque
+ * token the scenario is still readable. Without this, a real tokenize-then-pay
+ * flow could never reach any scenario: the minted id matched nothing and every
+ * payment fell through to {@link DEFAULT_OUTCOME}.
+ */
+export function outcomeMarker(outcome: Outcome): string {
+  return OUTCOME_TO_SUFFIX[outcome];
+}
+
+/** Shape of an id minted by this service: `<card|token>_fake_<marker>_<32 hex>`. */
+const MINTED_ID = /^(?:card|token)_fake_(.+)_[0-9a-f]{32}$/;
+
+/**
+ * Resolve the scenario carried by an id this service minted. Returns `undefined`
+ * for a foreign id, for a minted id with no marker (the pre-fix shape), and for
+ * an unknown marker — all of which then fall through to
+ * {@link DEFAULT_OUTCOME}.
+ */
+function lookupMinted(id?: string): Outcome | undefined {
+  const marker = id !== undefined ? MINTED_ID.exec(id)?.[1] : undefined;
+  return marker !== undefined && Object.hasOwn(TOKENIZED_OUTCOME_SUFFIXES, marker)
+    ? TOKENIZED_OUTCOME_SUFFIXES[marker]
+    : undefined;
+}
+
 /** Look up `key` in `table` by own-property, ignoring inherited keys. */
 function lookup(table: Readonly<Record<string, Outcome>>, key?: string): Outcome | undefined {
   return key !== undefined && Object.hasOwn(table, key) ? table[key] : undefined;
@@ -74,9 +118,13 @@ function lookup(table: Readonly<Record<string, Outcome>>, key?: string): Outcome
 
 /**
  * Resolve the deterministic {@link Outcome} for an incoming payment. Precedence:
- * the raw card `number` first, then the tokenized `cardId`, then `cardToken`. An
- * unrecognized or absent card falls back to {@link DEFAULT_OUTCOME}
- * (`approved_captured`).
+ * the raw card `number`, then a hand-written magic `cardId`/`cardToken`, then the
+ * scenario marker of an id minted by this service. An unrecognized or absent card
+ * falls back to {@link DEFAULT_OUTCOME} (`declined`).
+ *
+ * The minted-marker step is what makes the tokenized flow testable end to end:
+ * paying with the token returned by `POST /core/v5/tokens` reproduces the same
+ * outcome as paying with the card number it was minted from.
  *
  * Pure and deterministic — no store, network, or clock access.
  */
@@ -90,6 +138,8 @@ export function resolveOutcome(input: {
     lookup(MAGIC_CARD_NUMBERS, number) ??
     lookup(MAGIC_TOKEN_IDS, cardId) ??
     lookup(MAGIC_TOKEN_IDS, cardToken) ??
+    lookupMinted(cardId) ??
+    lookupMinted(cardToken) ??
     DEFAULT_OUTCOME
   );
 }

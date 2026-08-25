@@ -46,6 +46,21 @@ describe("opaque ID minting", () => {
     expect(mintId(ID_PREFIXES.charge)).toMatch(/^ch_fake_[0-9a-f]{32}$/);
   });
 
+  it("embeds a scenario marker between the prefix and the random suffix", () => {
+    expect(newTokenId("refused")).toMatch(/^token_fake_refused_[0-9a-f]{32}$/);
+    expect(newCardId("no_capture")).toMatch(/^card_fake_no_capture_[0-9a-f]{32}$/);
+    expect(mintId(ID_PREFIXES.card, "approved")).toMatch(/^card_fake_approved_[0-9a-f]{32}$/);
+  });
+
+  it("keeps the unmarked shape when no marker is supplied", () => {
+    expect(newTokenId(undefined)).toMatch(/^token_fake_[0-9a-f]{32}$/);
+    expect(newCardId()).toMatch(/^card_fake_[0-9a-f]{32}$/);
+  });
+
+  it("keeps marked ids unique (the suffix is still random)", () => {
+    expect(newTokenId("refused")).not.toBe(newTokenId("refused"));
+  });
+
   it("produces opaque, non-sequential suffixes (two mints differ)", () => {
     expect(newOrderId()).not.toBe(newOrderId());
   });
