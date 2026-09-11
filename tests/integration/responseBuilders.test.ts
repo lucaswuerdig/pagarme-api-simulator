@@ -38,6 +38,7 @@ function persistRecordFor(outcome: Exclude<Outcome, "gateway_unavailable">): Ord
     status: ROOT_STATUS[outcome],
     outcome,
     metadata: { site: "Minha Loja" },
+    reversedAmount: 0,
   };
 }
 

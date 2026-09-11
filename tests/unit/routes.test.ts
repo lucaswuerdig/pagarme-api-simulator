@@ -258,6 +258,7 @@ describe("POST /__reset is gated by the token (ADR-002)", () => {
       status: "paid",
       outcome: "approved_captured",
       metadata: {},
+      reversedAmount: 0,
     };
   }
 

@@ -32,6 +32,7 @@ function recordFor(
     status: ROOT_STATUS[outcome],
     outcome,
     metadata: { site: "Minha Loja" },
+    reversedAmount: 0,
   };
 }
 
