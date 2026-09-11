@@ -35,7 +35,7 @@ describe("requireToken", () => {
     const res = stubRes();
     const next = vi.fn();
 
-    requireToken(stubReq(basic("test_token")), res, next);
+    requireToken(stubReq(basic("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL")), res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();

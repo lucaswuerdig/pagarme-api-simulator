@@ -7,13 +7,13 @@ const basic = (token: string): string => `Basic ${Buffer.from(`${token}:`).toStr
 
 describe("VALID_TOKENS allowlist (ADR-004)", () => {
   it("includes the committed homologation test token", () => {
-    expect(VALID_TOKENS.has("test_token")).toBe(true);
+    expect(VALID_TOKENS.has("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL")).toBe(true);
   });
 });
 
 describe("isValidToken", () => {
   it("returns true for an allowlisted token", () => {
-    expect(isValidToken("test_token")).toBe(true);
+    expect(isValidToken("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL")).toBe(true);
   });
 
   it("returns false for a token that is not on the allowlist", () => {
@@ -31,7 +31,7 @@ describe("isValidToken", () => {
 
 describe("parseBasicToken", () => {
   it("decodes the token from a well-formed Basic header", () => {
-    expect(parseBasicToken(basic("test_token"))).toBe("test_token");
+    expect(parseBasicToken(basic("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL"))).toBe("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL");
   });
 
   it("returns undefined when the header is absent", () => {
@@ -43,11 +43,11 @@ describe("parseBasicToken", () => {
   });
 
   it("matches the scheme case-insensitively (RFC 7617 §2): lowercase 'basic '", () => {
-    expect(parseBasicToken(basic("test_token").replace("Basic ", "basic "))).toBe("test_token");
+    expect(parseBasicToken(basic("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL").replace("Basic ", "basic "))).toBe("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL");
   });
 
   it("matches the scheme case-insensitively (RFC 7617 §2): uppercase 'BASIC '", () => {
-    expect(parseBasicToken(basic("test_token").replace("Basic ", "BASIC "))).toBe("test_token");
+    expect(parseBasicToken(basic("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL").replace("Basic ", "BASIC "))).toBe("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL");
   });
 
   it("does not throw and never yields a listed value for non-base64 input", () => {
@@ -63,8 +63,8 @@ describe("parseBasicToken", () => {
   });
 
   it("keeps only the part before the first colon (ignores the password)", () => {
-    expect(parseBasicToken(`Basic ${Buffer.from("test_token:secret").toString("base64")}`)).toBe(
-      "test_token",
+    expect(parseBasicToken(`Basic ${Buffer.from("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:secret").toString("base64")}`)).toBe(
+      "fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL",
     );
   });
 });

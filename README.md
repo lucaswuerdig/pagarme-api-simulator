@@ -67,9 +67,9 @@ Tokens travel in the real Pagar.me v5 form — `Authorization: Basic
 base64("<token>:")`, the token as the username with an **empty** password:
 
 ```bash
-# `test_token` -> base64("test_token:") == dGVzdF90b2tlbjo=
+# `fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL` -> base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:") == ZmtfaGZsVDFJc0RHTnU1cThuVVN0bGtVd3VPbTB0NHhnckw6
 curl -s http://localhost:8088/health \
-  -H 'authorization: Basic dGVzdF90b2tlbjo='   # /health is open; token optional here
+  -H 'authorization: Basic ZmtfaGZsVDFJc0RHTnU1cThuVVN0bGtVd3VPbTB0NHhnckw6'   # /health is open; token optional here
 ```
 
 A request with a missing, malformed, or unlisted token is rejected **before** any
@@ -81,9 +81,9 @@ business logic with `HTTP 401` and the body `{ "error": "unauthorized", "message
 Valid tokens are a **fixed, committed allowlist** in
 [`src/auth/tokens.ts`](src/auth/tokens.ts) — they are **not** environment-configured.
 Add or revoke a token by editing that file and redeploying, exactly like the
-[magic-card catalog](#magic-card-catalog). The committed `test_token` is the
-clearly-fake homologation value the test suite uses; the `/__reset` and `/core/v5`
-examples below carry its `Authorization` header.
+[magic-card catalog](#magic-card-catalog). The two committed tokens are homologation
+values with no access to anything real; the test suite and the `/__reset` and
+`/core/v5` examples below carry the first one's `Authorization` header.
 
 The destructive `POST /__reset` helper is covered by this same gate — one credential
 model across the whole protected surface, with no separate per-endpoint secret
@@ -159,11 +159,11 @@ Drive the **approved + captured** happy path with the `4000000000000010` card:
 ```bash
 curl -s -X POST http://localhost:8088/core/v5/orders \
   -H 'content-type: application/json' \
-  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
+  -H 'authorization: Basic ZmtfaGZsVDFJc0RHTnU1cThuVVN0bGtVd3VPbTB0NHhnckw6' \
   --data-binary @order.json
 ```
 
-> The `authorization` header carries `base64("test_token:")` — the homologation
+> The `authorization` header carries `base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:")` — the homologation
 > token from [`src/auth/tokens.ts`](src/auth/tokens.ts) (see
 > [Authentication](#authentication)). Drop it, or send an unlisted token, and the
 > request returns `401` instead of the order body.
@@ -187,7 +187,7 @@ so the request must carry a valid `Authorization` header:
 
 ```bash
 curl -s -X POST http://localhost:8088/__reset \
-  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
+  -H 'authorization: Basic ZmtfaGZsVDFJc0RHTnU1cThuVVN0bGtVd3VPbTB0NHhnckw6' \
   -o /dev/null -w '%{http_code}\n'   # -> 204 (omit the header -> 401)
 ```
 
