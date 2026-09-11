@@ -87,6 +87,46 @@ describe("tokenize → pay reproduces the magic-card scenario", () => {
     expect(res.body.charges[0].last_transaction.success).toBe(false);
   });
 
+  /**
+   * The upsell/one-click flow: the consuming app charges once, stores the
+   * `card.id` the order response returned, and replays it on the next charge.
+   * The id it replays is minted by `POST /core/v5/orders`, not by tokenization,
+   * so that id has to carry the scenario marker too — minting it bare sent every
+   * upsell to DEFAULT_OUTCOME (`declined`) no matter which card paid the first
+   * order.
+   */
+  for (const { number, status, success } of SCENARIOS) {
+    it(`card.id returned by an order paid with ${number} replays to ${status}`, async () => {
+      const app = createPagarmeApp();
+      const { token } = await tokenize(app, number);
+
+      const first = await payWith(app, { card_token: token, operation_type: "auth_and_capture" });
+      expect(first.status).toBe(200);
+      const cardId = first.body.charges[0].last_transaction.card.id as string;
+
+      const upsell = await payWith(app, { card_id: cardId, operation_type: "auth_and_capture" });
+      expect(upsell.status).toBe(200);
+      expect(upsell.body.status).toBe(status);
+      expect(upsell.body.charges[0].last_transaction.success).toBe(success);
+    });
+  }
+
+  it("the card.id from a raw-number order replays as approved, not declined", async () => {
+    const app = createPagarmeApp();
+
+    const first = await payWith(app, {
+      card: { number: "4000000000000010", ...HOLDER },
+      operation_type: "auth_and_capture",
+    });
+    expect(first.body.status).toBe("paid");
+    const cardId = first.body.charges[0].last_transaction.card.id as string;
+    expect(cardId).toMatch(/^card_fake_approved_[0-9a-f]{32}$/);
+
+    const upsell = await payWith(app, { card_id: cardId, operation_type: "auth_and_capture" });
+    expect(upsell.body.status).toBe("paid");
+    expect(upsell.body.charges[0].last_transaction.success).toBe(true);
+  });
+
   it("keeps the minted ids opaque — no card number leaks into them", async () => {
     const app = createPagarmeApp();
     const { token, cardId } = await tokenize(app, "4000000000000002");
