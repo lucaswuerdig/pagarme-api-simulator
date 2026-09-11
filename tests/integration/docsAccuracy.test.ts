@@ -17,7 +17,7 @@ import { createStore } from "../../src/store";
  *     produces the documented approved+captured outcome;
  *   - that same documented credential authenticates a protected route while the
  *     gate genuinely rejects an absent one, so the README's
- *     `Basic base64("test_token:")` value can never silently drift from the
+ *     `Basic base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:")` value can never silently drift from the
  *     allowlist and leave the suite green.
  *
  * Static content/link assertions live in `tests/unit/docs.test.ts`.
@@ -79,7 +79,7 @@ describe("documented sample order request matches behavior (doc ↔ behavior par
 
     // Drive the request with the README's *documented* `Authorization` header (the
     // literal curl credential a reader copy-pastes), not the helper's own — so the
-    // 200 below also proves the documented `Basic base64("test_token:")` value
+    // 200 below also proves the documented `Basic base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:")` value
     // actually authenticates against the running app.
     const res = await request(buildDocumentedApp())
       .post("/core/v5/orders")
@@ -102,7 +102,7 @@ describe("documented sample order request matches behavior (doc ↔ behavior par
 });
 
 describe("documented Authorization header authenticates (doc ↔ behavior parity)", () => {
-  it('the documented `Basic base64("test_token:")` credential is accepted on a protected route', async () => {
+  it('the documented `Basic base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:")` credential is accepted on a protected route', async () => {
     const authHeader = extractDocumentedAuthHeader(readme, "<!-- doctest:orders-request -->");
     const app = buildDocumentedApp();
 

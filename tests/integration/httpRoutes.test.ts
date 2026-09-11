@@ -13,7 +13,7 @@ import { authedRequest } from "../helpers/authedRequest";
  *
  * Protected routes now sit behind the always-on token gate (ADR-001), so every
  * `/core/v5` and `/__reset` call goes through {@link authedRequest}, which presets
- * the `Authorization` header with the homologation `test_token`. `GET /health`
+ * the `Authorization` header with the homologation `fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL`. `GET /health`
  * stays open and is called with a bare `request(...)`. The dedicated gate suite
  * below exercises the unauthenticated and unlisted-token rejections directly.
  *
@@ -333,7 +333,7 @@ describe("token gate enforcement on the protected surface (ADR-001/002/003)", ()
     expect(res.body.error).toBe("unauthorized");
   });
 
-  it("accepts POST /core/v5/orders with the homologation test_token (happy path preserved)", async () => {
+  it("accepts POST /core/v5/orders with the homologation fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL (happy path preserved)", async () => {
     const res = await authedRequest(createPagarmeApp())
       .post("/core/v5/orders")
       .send(orderBody("4000000000000010"));

@@ -36,7 +36,7 @@ function loggedLinesFor(
  * suite. Each test builds its own app so the injected store starts empty.
  *
  * Protected `/core/v5` and `/__reset` calls go through {@link authedRequest},
- * which presets the `Authorization` header with the homologation `test_token`
+ * which presets the `Authorization` header with the homologation `fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL`
  * required by the always-on gate (ADR-001). `GET /health` stays open and uses a
  * bare `request(...)`; the gate's rejection paths are exercised in the reset
  * block below and in the integration suite.
@@ -258,6 +258,7 @@ describe("POST /__reset is gated by the token (ADR-002)", () => {
       status: "paid",
       outcome: "approved_captured",
       metadata: {},
+      reversedAmount: 0,
     };
   }
 

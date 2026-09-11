@@ -104,12 +104,13 @@ curl -s http://localhost:8088/health     # -> {"status":"ok"} (open, no token)
 `GET /health` is open, but every `/core/v5/...` route **and** `POST /__reset` now
 require a valid token in the `Authorization` header (see the README's
 [Authentication](../README.md#authentication) section). Use the same Basic header
-the app sends — here with the example homologation token `test_token`
-(`base64("test_token:")`), which you would replace with your allowlisted token:
+the app sends — here with the homologation token
+`fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL` (`base64("fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL:")`),
+one of the two on the allowlist:
 
 ```bash
 curl -s -X POST http://localhost:8088/__reset \
-  -H 'authorization: Basic dGVzdF90b2tlbjo=' \
+  -H 'authorization: Basic ZmtfaGZsVDFJc0RHTnU1cThuVVN0bGtVd3VPbTB0NHhnckw6' \
   -o /dev/null -w '%{http_code}\n'   # -> 204 (omit the header -> 401)
 ```
 

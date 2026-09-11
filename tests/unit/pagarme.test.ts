@@ -113,6 +113,7 @@ describe("OrderRecord internal shape", () => {
       status: "paid",
       outcome: "approved_captured",
       metadata: { site: "Minha Loja" },
+      reversedAmount: 0,
     };
     expect(record.chargeId).toBe("ch_fake_0001");
     expect(record.outcome).toBe("approved_captured");

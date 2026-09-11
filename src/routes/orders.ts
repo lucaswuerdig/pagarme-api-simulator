@@ -13,7 +13,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { resolveOutcome, type Outcome } from "../magic/cards";
+import { outcomeMarker, resolveOutcome, type Outcome } from "../magic/cards";
 import { buildOrderResponse } from "../responses/orderResponse";
 import type { OrderStore } from "../store/orderStore";
 import type {
@@ -69,7 +69,12 @@ export function ordersRouter(store: OrderStore): Router {
     const record: OrderRecord = {
       orderId: newOrderId(),
       chargeId: newChargeId(),
-      cardId: newCardId(),
+      // The card id travels back to the consuming app in
+      // `charges[0].last_transaction.card.id` and is what it replays on a later
+      // upsell/one-click charge, so it has to carry the scenario marker the same
+      // way a tokenized id does (`magic/cards.ts`, `outcomeMarker`). Minting it
+      // bare made every reuse fall through to DEFAULT_OUTCOME (`declined`).
+      cardId: newCardId(outcomeMarker(outcome)),
       code: body.code ?? "",
       amount: payment.amount ?? 0,
       status: PERSISTED_STATUS[outcome],

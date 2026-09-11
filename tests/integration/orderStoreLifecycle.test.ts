@@ -25,6 +25,7 @@ describe("InMemoryOrderStore lifecycle (pre-auth → capture → cancel)", () =>
       status: "authorized_pending_capture",
       outcome: "approved_no_capture",
       metadata: { site: "Minha Loja" },
+      reversedAmount: 0,
     };
 
     // 1. Create the pre-authorized charge and read it back.

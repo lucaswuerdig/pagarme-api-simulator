@@ -9,7 +9,7 @@
  * pre-gate `request(app)`; no test can silently forget the credential.
  *
  * The token is sourced from {@link VALID_TOKENS} in `src/auth/tokens.ts` — the
- * single source of truth — so the committed homologation `test_token` can never
+ * single source of truth — so the committed homologation `fk_hflT1IsDGNu5q8nUStlkUwuOm0t4xgrL` can never
  * drift from the allowlist. Negative-auth tests deliberately bypass this helper
  * and call `request(app)` directly (no header, or a deliberately bogus one).
  *
